@@ -7,33 +7,37 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: barra superior con archivos; panel de la plantilla SAP a la izquierda, tabla de clientes a la derecha. */
+/* Layout: ancho completo; archivos arriba, configuración plegable y la tabla de clientes ocupando toda la pantalla.
+   Interfaz en escala de grises; el color queda solo para los indicadores. */
 :root {
-  --bg: #f3f6f5; --surface: #ffffff; --ink: #16201c; --muted: #5a6963; --line: #d8e0dc;
-  --accent: #0d6b58; --accent-ink: #ffffff; --accent-soft: #e2f1ec;
+  --bg: #f4f4f5; --surface: #ffffff; --ink: #18181b; --muted: #63636b; --line: #dcdce0;
+  --accent: #27272a; --accent-ink: #ffffff; --accent-soft: #ececee;
   --err: #b42323; --err-bg: #fde7e4; --warn: #9a5b00; --warn-bg: #fff2d6; --ok: #2c7a39; --ok-bg: #e4f4e6;
+  --fix: #0d6b58; --fix-bg: #e2f1ec; --edit: #0d6b58;
   --f-ui: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
   --f-data: "JetBrains Mono", Consolas, "Courier New", monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e1412; --surface: #151d1a; --ink: #e3ebe7; --muted: #92a29b; --line: #29342f;
-    --accent: #4fc4a7; --accent-ink: #0b1714; --accent-soft: #173029;
+    --bg: #111113; --surface: #19191c; --ink: #ececef; --muted: #9b9ba3; --line: #2e2e33;
+    --accent: #e4e4e7; --accent-ink: #18181b; --accent-soft: #26262b;
     --err: #ff8078; --err-bg: #3b1918; --warn: #f1b552; --warn-bg: #33270e; --ok: #74d083; --ok-bg: #16301b;
+    --fix: #4fc4a7; --fix-bg: #173029; --edit: #4fc4a7;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0e1412; --surface: #151d1a; --ink: #e3ebe7; --muted: #92a29b; --line: #29342f;
-  --accent: #4fc4a7; --accent-ink: #0b1714; --accent-soft: #173029;
+  --bg: #111113; --surface: #19191c; --ink: #ececef; --muted: #9b9ba3; --line: #2e2e33;
+  --accent: #e4e4e7; --accent-ink: #18181b; --accent-soft: #26262b;
   --err: #ff8078; --err-bg: #3b1918; --warn: #f1b552; --warn-bg: #33270e; --ok: #74d083; --ok-bg: #16301b;
+  --fix: #4fc4a7; --fix-bg: #173029; --edit: #4fc4a7;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-ui); padding: 20px 16px 40px; }
-.wrap { max-width: 1500px; margin: 0 auto; display: grid; gap: 16px; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-ui); padding: 16px 20px 24px; }
+.wrap { display: grid; gap: 14px; }
 h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
 h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; font-weight: 600; }
 button, select, input { font: inherit; color: inherit; }
@@ -60,9 +64,17 @@ header.top p { margin: 2px 0 0; color: var(--muted); }
 .tag.err { background: var(--err-bg); color: var(--err); }
 .tag.ok { background: var(--ok-bg); color: var(--ok); }
 
-.main { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 12px; min-width: 0; }
+details.cfg { display: block; padding: 0; }
+details.cfg summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 12px 14px; }
+details.cfg summary::-webkit-details-marker { display: none; }
+details.cfg summary::before { content: "▸"; color: var(--muted); transition: transform 0.15s; display: inline-block; }
+details.cfg[open] summary::before { transform: rotate(90deg); }
+.cfg-title { font-weight: 600; }
+.cfg-body { display: grid; gap: 18px; padding: 4px 14px 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+.cfg-sec { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.cfg-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.cols.grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 .field { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 4px 6px; min-width: 0; }
 
 .cols { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -99,7 +111,7 @@ header.top p { margin: 2px 0 0; color: var(--muted); }
 .toolbar .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 .toolbar .checks label { display: flex; gap: 6px; align-items: center; }
 
-.tablebox { overflow: auto; max-height: 68vh; border: 1px solid var(--line); border-radius: 8px; }
+.tablebox { overflow: auto; height: max(360px, calc(100vh - 330px)); border: 1px solid var(--line); border-radius: 8px; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
 th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; white-space: nowrap; }
 th { position: sticky; top: 0; background: var(--surface); z-index: 1; font-size: 12px; font-weight: 600; color: var(--ink); font-family: var(--f-data); }
@@ -116,8 +128,8 @@ td.v:focus { outline: 2px solid var(--accent); outline-offset: -2px; background:
 td.v.err { background: var(--err-bg); color: var(--err); }
 td.v.warn { background: var(--warn-bg); color: var(--warn); }
 td.v.err:empty::before { content: "Falta dato"; font-family: var(--f-ui); font-style: italic; font-weight: 600; }
-td.v.edited { box-shadow: inset 0 -2px 0 var(--accent); }
-td.v.fixed { background: var(--accent-soft); }
+td.v.edited { box-shadow: inset 0 -2px 0 var(--edit); }
+td.v.fixed { background: var(--fix-bg); }
 .rowx { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 5px; font-size: 11px; padding: 1px 6px; margin-left: 8px; }
 .rowx:hover { border-color: var(--err); color: var(--err); }
 tr.r-off td.v { opacity: 0.4; text-decoration: line-through; }
@@ -128,8 +140,8 @@ tr.r-off .rowx { color: var(--accent); border-color: var(--accent); }
 .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
 .legend .l-err::before { background: var(--err); }
 .legend .l-warn::before { background: var(--warn); }
-.legend .l-ed::before { background: var(--accent); }
-.legend .l-fix::before { background: var(--accent-soft); border: 1px solid var(--accent); }
+.legend .l-ed::before { background: var(--edit); }
+.legend .l-fix::before { background: var(--fix-bg); border: 1px solid var(--fix); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -156,33 +168,42 @@ tr.r-off .rowx { color: var(--accent); border-color: var(--accent); }
   </section>
   <div id="loadError" class="error-box" hidden></div>
 
-  <div class="main">
-    <aside class="panel">
-      <div class="toolbar"><h2>Datos de cada cliente</h2><button class="btn small" id="resetCols">Restablecer plantilla</button></div>
-      <p class="note">De dónde sale cada columna de la plantilla. Las obligatorias se marcan en rojo cuando faltan.</p>
-      <ul class="cols" id="colsMain"></ul>
-
-      <h2>Valores fijos para todos</h2>
-      <ul class="cols fixed-list" id="colsFixed"></ul>
-
-      <h2>Lectura del GPX</h2>
-      <div class="opts">
-        <label><input type="checkbox" id="splitName"> Separar el nombre por "/" en negocio, propietario, teléfono, dirección, municipio y departamento</label>
-        <label><input type="checkbox" id="splitDesc"> Separar la descripción en columnas (líneas tipo <code>RTN: 0801…</code>)</label>
+  <details class="panel cfg" id="cfg">
+    <summary><span class="cfg-title">Configuración de la plantilla</span><span class="note">Origen de cada columna, valores fijos y formato de exportación</span></summary>
+    <div class="cfg-body">
+      <section class="cfg-sec">
+        <div class="toolbar"><h2>Datos de cada cliente</h2><button class="btn small" id="resetCols">Restablecer plantilla</button></div>
+        <p class="note">De dónde sale cada columna de la plantilla. Las obligatorias se marcan en rojo cuando faltan.</p>
+        <ul class="cols grid" id="colsMain"></ul>
+      </section>
+      <section class="cfg-sec">
+        <h2>Valores fijos para todos</h2>
+        <ul class="cols grid fixed-list" id="colsFixed"></ul>
+      </section>
+      <div class="cfg-pair">
+        <section class="cfg-sec">
+          <h2>Lectura del GPX</h2>
+          <div class="opts">
+            <label><input type="checkbox" id="splitName"> Separar el nombre por "/" en negocio, propietario, teléfono, dirección, municipio y departamento</label>
+            <label><input type="checkbox" id="splitDesc"> Separar la descripción en columnas (líneas tipo <code>RTN: 0801…</code>)</label>
+          </div>
+        </section>
+        <section class="cfg-sec">
+          <h2>Exportación</h2>
+          <div class="opts">
+            <div class="row"><span>Formato</span>
+              <select class="field" id="fmt">
+                <option value=",">CSV separado por comas</option>
+                <option value=";">CSV separado por punto y coma</option>
+                <option value="tab">Texto Unicode con tabulaciones (.txt)</option>
+              </select></div>
+            <label><input type="checkbox" id="bom"> CSV en UTF-8 con BOM (Excel muestra bien tildes y ñ)</label>
+            <p class="note">Si al importar en SAP las tildes o la ñ salen mal, prueba el formato <b>Texto Unicode con tabulaciones</b>. Si el primer encabezado sale con un carácter raro, desmarca la opción BOM.</p>
+          </div>
+        </section>
       </div>
-
-      <h2>Exportación</h2>
-      <div class="opts">
-        <div class="row"><span>Formato</span>
-          <select class="field" id="fmt">
-            <option value=",">CSV separado por comas</option>
-            <option value=";">CSV separado por punto y coma</option>
-            <option value="tab">Texto Unicode con tabulaciones (.txt)</option>
-          </select></div>
-        <label><input type="checkbox" id="bom"> CSV en UTF-8 con BOM (Excel muestra bien tildes y ñ)</label>
-        <p class="note">Si al importar en SAP las tildes o la ñ salen mal, prueba el formato <b>Texto Unicode con tabulaciones</b>. Si el primer encabezado sale con un carácter raro, desmarca la opción BOM.</p>
-      </div>
-    </aside>
+    </div>
+  </details>
 
     <section class="panel">
       <div class="filebar" id="filebar" hidden>
@@ -214,7 +235,6 @@ tr.r-off .rowx { color: var(--accent); border-color: var(--accent); }
       <div class="tablebox"><table id="table"></table></div>
       <p class="note">Haz clic en una celda para corregirla; al salir se aplica el formato. Usa <b>Excluir</b> para dejar fuera los puntos que no son clientes (por ejemplo "IMP 01"). Pasa el mouse sobre el número de fila para ver el texto original del GPX.</p>
     </section>
-  </div>
 </div>
 
 <script>
@@ -530,7 +550,7 @@ const state = {
   files: [], active: 0, tcfg: {},
   splitName: true, splitDesc: true, fmt: ',', bom: true, showFixed: false, onlyIssues: false, filterCol: null,
 };
-const SAVED = ['tcfg', 'splitName', 'splitDesc', 'fmt', 'bom', 'showFixed'];
+const SAVED = ['tcfg', 'cfgOpen', 'splitName', 'splitDesc', 'fmt', 'bom', 'showFixed'];
 try {
   const s = JSON.parse(localStorage.getItem(STORE) || '{}');
   for (const k of SAVED) if (k in s) state[k] = s[k];
@@ -815,7 +835,7 @@ function toXLSX(f) {
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="${NS}"><numFmts count="1"><numFmt numFmtId="164" formatCode="0.000000"/></numFmts>
 <fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><sz val="11"/><color rgb="FF9C0006"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF5A6963"/><name val="Calibri"/></font></fonts>
-<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0D6B58"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFC7CE"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFEB9C"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE2F1EC"/><bgColor indexed="64"/></patternFill></fill></fills>
+<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF3F3F46"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFC7CE"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFEB9C"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF4F4F5"/><bgColor indexed="64"/></patternFill></fill></fills>
 <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
 <cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="3" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>
@@ -904,6 +924,8 @@ $('#fmt').value = state.fmt;
 $('#download').textContent = state.fmt === 'tab' ? 'Descargar TXT' : 'Descargar CSV';
 $('#bom').checked = state.bom;
 $('#showFixed').checked = state.showFixed;
+$('#cfg').open = !!state.cfgOpen;
+$('#cfg').addEventListener('toggle', e => { state.cfgOpen = e.target.open; save(); });
 render();
 </script>
 </body>
