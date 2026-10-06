@@ -464,6 +464,26 @@ function isPhone(p) {
   const d = p.replace(/\D/g, '');
   return /^[+()\d\s.-]+$/.test(p) && (d.length === 8 || (d.length === 11 && /^50[2-7]/.test(d)));
 }
+// Busca un nombre del catálogo al final de un texto: "... CASA HOGAR DISTRITO CENTRAL"
+// Primero nombres exactos (el más largo: "SAN JOSE DE COMAYAGUA" antes que "COMAYAGUA");
+// si no hay, con errores de escritura (el más corto, para no tragarse "BLOQUE 3")
+function suffixMatch(text, fn, maxWords) {
+  const w = clean(text).split(/[\s,;]+/).filter(Boolean), max = Math.min(maxWords, w.length);
+  const at = n => { const cand = w.slice(-n).join(' '), m = fn(cand); return m && { m, cand, rest: w.slice(0, -n).join(' ') }; };
+  const exact = r => { const k = catKey(r.cand); return k === catKey(r.m.value) || MUNI_ALIAS[k] || DEPTO_ALIAS[k]; };
+  for (let n = max; n >= 1; n--) { const r = at(n); if (r && exact(r)) return r; }
+  for (let n = 1; n <= max; n++) { const r = at(n); if (r) return r; }
+  return null;
+}
+// solo municipios del departamento indicado, para no confundir direcciones como "FRENTE A SANTA ANA"
+const muniIn = dep => s => { const m = matchMuni(s, dep); return m && HN[dep] && HN[dep].includes(catKey(m.value)) ? m : null; };
+// "DISTRITO CENTRAL FRANCISCO MORAZAN" → ["DISTRITO CENTRAL", "FRANCISCO MORAZAN"]
+function splitPlace(text) {
+  const d = suffixMatch(text, matchDepto, 4);
+  if (!d || !d.rest) return null;
+  const mu = suffixMatch(d.rest, muniIn(catKey(d.m.value)), 5);
+  return mu ? [mu.rest, mu.cand, d.cand].filter(Boolean) : null;
+}
 const SPLIT_KEYS = ['negocio', 'propietario', 'telefono', 'direccion', 'municipio', 'departamento'];
 function splitName(text) {
   let parts = String(text).split('/').map(clean).filter(Boolean);
@@ -491,14 +511,23 @@ function splitName(text) {
   out.negocio = left[0] || '';
   out.propietario = left.slice(1).join(' / ');
   out.telefono = phones.join(' / ');
+  // "DISTRITO CENTRAL FRANCISCO MORAZAN" escrito sin "/" entre municipio y departamento
+  if (right.length && !matchDepto(right.at(-1))) {
+    const sp = splitPlace(right.at(-1));
+    if (sp) { right.splice(-1, 1, ...sp); fix.municipio = fix.departamento = 'Separado automáticamente: municipio y departamento venían sin "/"'; }
+  }
   let depKey = '';
   if (right.length) {
     const d = matchDepto(right.at(-1));
     if (d) { if (d.fixed) fix.departamento = `Corregido automáticamente (decía "${right.at(-1)}")`; out.departamento = d.value; depKey = catKey(d.value); right.pop(); }
   }
   if (right.length) {
-    const last = right.at(-1), m = matchMuni(last, depKey);
+    const last = right.at(-1), m = matchMuni(last, depKey), tail = !m && depKey && suffixMatch(last, muniIn(depKey), 5);
     if (m) { if (m.fixed) fix.municipio = `Corregido automáticamente (decía "${last}")`; out.municipio = m.value; right.pop(); }
+    else if (tail) { // "COLONIA X DISTRITO CENTRAL": municipio pegado al final de la dirección
+      out.municipio = tail.m.value; fix.municipio = 'Separado automáticamente: venía pegado a la dirección';
+      tail.rest ? (right[right.length - 1] = tail.rest) : right.pop();
+    }
     else if (out.departamento && right.length > 1) { out.municipio = last; right.pop(); }
   }
   if (!out.departamento && out.municipio) {
@@ -738,7 +767,7 @@ function renderTable() {
       const fixed = s.src === 'field' && !edited && c.level === 'ok' && meta.fix[s.field];
       const msg = c.msg || fixed || (s.src !== 'field' ? `${SRC_LABELS[s.src]}: se cambia en el panel` : '');
       const cls = ['v', c.level !== 'ok' ? c.level : '', edited ? 'edited' : '', fixed ? 'fixed' : '', editable ? '' : 'const'].join(' ');
-      return `<td class="${cls}" contenteditable="${editable}" spellcheck="false" data-r="${i}" data-field="${editable ? esc(s.field) : ''}"${msg ? ` title="${esc(msg)}"` : ''}>${esc(c.value)}</td>`;
+      return `<td class="${cls}" contenteditable="${editable}" spellcheck="false" data-r="${i}" data-col="${col.api}" data-field="${editable ? esc(s.field) : ''}" data-v="${esc(c.value)}"${msg ? ` title="${esc(msg)}"` : ''}>${esc(c.value)}</td>`;
     }).join('')}</tr>`;
   });
   if (!shown) html += `<tr><td class="empty" colspan="${cols.length + 1}">No hay filas con problemas. El archivo está listo.</td></tr>`;
@@ -909,9 +938,9 @@ $('#splitName').onchange = e => { state.splitName = e.target.checked; state.file
 $('#splitDesc').onchange = e => { state.splitDesc = e.target.checked; state.files.forEach(buildRows); save(); render(); };
 $('#fmt').onchange = e => { state.fmt = e.target.value; $('#download').textContent = state.fmt === 'tab' ? 'Descargar TXT' : 'Descargar CSV'; save(); };
 $('#bom').onchange = e => { state.bom = e.target.checked; save(); };
-$('#download').onclick = () => { const f = activeFile(); if (f && confirmErrors([f])) download(f); };
-$('#downloadXlsx').onclick = () => { const f = activeFile(); if (f) downloadXLSX(f); };
-$('#downloadAll').onclick = () => { if (confirmErrors(state.files)) state.files.forEach((f, i) => setTimeout(() => download(f), i * 400)); };
+$('#download').onclick = () => { commitActive(); const f = activeFile(); if (f && confirmErrors([f])) download(f); };
+$('#downloadXlsx').onclick = () => { commitActive(); const f = activeFile(); if (f) downloadXLSX(f); };
+$('#downloadAll').onclick = () => { commitActive(); if (confirmErrors(state.files)) state.files.forEach((f, i) => setTimeout(() => download(f), i * 400)); };
 
 const table = $('#table');
 table.addEventListener('click', e => {
@@ -925,17 +954,28 @@ table.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
   if (e.key === 'Escape') { e.target.dataset.cancel = '1'; e.target.blur(); }
 });
-table.addEventListener('focusout', e => {
-  const td = e.target; if (!td.matches('td.v') || !td.dataset.field) return;
+// Guarda la corrección de una celda. Se compara con el valor que se dibujó (data-v),
+// no con el de al entrar, para no perder lo escrito si el navegador repite el foco.
+function commitCell(td) {
+  if (!td || !td.matches || !td.matches('td.v') || !td.dataset.field || !td.isConnected) return false;
   const f = activeFile(), i = +td.dataset.r, k = td.dataset.field;
-  if (td.dataset.cancel) { render(); return; }
+  if (td.dataset.cancel) return true;
   const now = td.textContent.trim();
-  if (now === clean(f.rows[i][k] ?? '') || now === td.dataset.shown) return;
+  if (now === td.dataset.v || now === clean(f.rows[i][k] ?? '')) return false;
   (f.edits[i] ||= {})[k] = now;
   f.rows[i][k] = now;
+  return true;
+}
+table.addEventListener('focusout', e => {
+  if (!commitCell(e.target)) return;
+  // si el clic fue en otra celda, se vuelve a enfocar después de redibujar
+  const to = e.relatedTarget && e.relatedTarget.matches && e.relatedTarget.matches('td.v') ? e.relatedTarget : null;
+  const key = to && [to.dataset.r, to.dataset.col];
   render();
+  if (key) table.querySelector(`td.v[data-r="${key[0]}"][data-col="${key[1]}"]`)?.focus();
 });
-table.addEventListener('focusin', e => { if (e.target.matches('td.v')) e.target.dataset.shown = e.target.textContent.trim(); });
+// antes de descargar, guarda la celda que se esté editando
+function commitActive() { if (commitCell(document.activeElement)) render(); }
 
 $('#splitName').checked = state.splitName;
 $('#splitDesc').checked = state.splitDesc;
