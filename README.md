@@ -1,32 +1,40 @@
 # Convertidor GPX a CSV
 
-Herramienta local para convertir archivos `.gpx` con datos de clientes a `.csv`, conservando tildes y ñ, validando campos obligatorios y aplicando formatos automáticos.
+Herramienta local para convertir archivos `.gpx` con datos de clientes al formato de la plantilla de socios de negocio de SAP Business One (`FORMATO PARA INGRESAR CLIENTES.xlsx`), conservando tildes y ñ y validando cada dato.
 
 ## Uso
 
 1. Abre `convertidor-gpx-csv.html` con doble clic (Chrome o Edge).
 2. Carga uno o varios archivos `.gpx` (botón o arrastrar y soltar).
-3. En **Columnas y formatos** elige qué columnas van al CSV, su nombre, formato y si son obligatorias.
-4. Corrige las celdas en rojo haciendo clic sobre ellas.
-5. Pulsa **Descargar CSV** para obtener el archivo que se sube a la plataforma.
-
-Para revisar los datos en Excel usa **Descargar Excel (revisión)**: genera un `.xlsx` con columnas separadas, filtros, encabezado fijo y los errores en rojo. (Excel separa un `.csv` según la configuración regional de Windows, por eso al abrirlo con doble clic puede verse todo en una sola columna.)
+3. Revisa **Ruta** y **Día de visita**: se toman del nombre del archivo (`1.- CD4R1 - LUNES ...gpx` → `CD4R1`, `LUNES`).
+4. Corrige las celdas en rojo haciendo clic sobre ellas y usa **Excluir** en los puntos que no son clientes (por ejemplo `IMP 01`).
+5. **Descargar CSV**: archivo para importar, con las 22 columnas y los dos encabezados de la plantilla.
+6. **Descargar Excel (revisión)**: el mismo contenido en `.xlsx`, con filtros y los errores en rojo.
 
 Todo se procesa en el navegador; no se envía ningún dato a internet.
 
-## Qué hace
+## De dónde sale cada columna
 
-- **Codificación**: lee el GPX respetando su codificación, repara textos dañados (`MarÃ­a` → `María`) y exporta en UTF-8 (con BOM opcional para Excel).
-- **Validación**: los campos obligatorios vacíos o con formato inválido se marcan en rojo, con un resumen por columna.
-- **Formatos**:
-  | Formato | Entrada | Salida |
-  |---|---|---|
-  | Teléfono | `98001100`, `+504 9800 1100` | `9800-1100` |
-  | Identidad | `0801199012345` | `0801-1990-12345` |
-  | Coordenada | `14.0818` | `14.081800` |
-  | Nombre Propio | `MARIA DE LA PAZ` | `Maria de la Paz` |
-  | MAYÚSCULAS, Solo dígitos, Correo | | |
-- **Nombre separado por "/"**: `NEGOCIO / PROPIETARIO / TELÉFONO / DIRECCIÓN / MUNICIPIO / DEPARTAMENTO` se reparte en columnas; detecta el teléfono aunque venga pegado al nombre y corrige errores en municipio y departamento (`DIATRITO CENTRAL` → `DISTRITO CENTRAL`).
-- **Excluir filas**: los puntos que no son clientes (por ejemplo `IMP 01`) se pueden dejar fuera del CSV.
-- **Descripción en columnas**: separa líneas tipo `Teléfono: 9800…` o tablas HTML dentro de `<desc>`.
-- La configuración de columnas se guarda en el navegador y se reutiliza en cada archivo.
+| Columna | Origen por defecto | Obligatoria |
+|---|---|---|
+| CardCode | Código automático (prefijo + número consecutivo) | Sí |
+| CardName | Negocio | Sí |
+| U_Ruta | Ruta del nombre del archivo | Sí |
+| U_Latitud / U_Longitud | Coordenadas del punto (6 decimales) | Sí |
+| Address | Dirección | Sí |
+| Phone1 | Teléfono (`9800-1100`) | Sí |
+| Notes | Propietario | Sí |
+| City | Municipio | Sí |
+| County | Departamento | Sí |
+| U_Dia_Visita | Día del nombre del archivo | Sí |
+| CardType, GroupCode, PayTermsGrpCode, Country, DebitorAccount, Properties1, U_TaxCode | Valores fijos de la plantilla (`cCustomer`, `104`, `-1`, `HN`, `_SYS00000001984`, `tYES`, `EXE`) | — |
+| PriceListNum, SalesPersonCode, Territory, RTN | Vacíos; se llenan solos si el GPX trae ese dato | No |
+
+Todo se puede cambiar en el panel izquierdo y la configuración se recuerda.
+
+## Validaciones
+
+- **Nombre separado por "/"**: `NEGOCIO / PROPIETARIO / TELÉFONO / DIRECCIÓN / MUNICIPIO / DEPARTAMENTO`; detecta el teléfono aunque venga pegado al nombre.
+- **Municipio y departamento**: catálogo oficial de Honduras (18 departamentos, 298 municipios). Corrige errores de escritura y abreviaturas (`DIATRITO CENTRAL`, `FCO MORAZAN`, `TEGUCIGALPA` → `DISTRITO CENTRAL`) y marca en rojo cuando el municipio no pertenece al departamento.
+- **Largo máximo** de cada campo según la plantilla (por ejemplo Phone1: 20, Address: 100).
+- **Codificación**: repara textos dañados (`MarÃ­a` → `María`). Exporta en CSV UTF-8 (con BOM opcional) o en Texto Unicode con tabulaciones.

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: barra superior con archivos y exportación; panel de columnas a la izquierda, tabla de clientes a la derecha. */
+/* Layout: barra superior con archivos; panel de la plantilla SAP a la izquierda, tabla de clientes a la derecha. */
 :root {
   --bg: #f3f6f5; --surface: #ffffff; --ink: #16201c; --muted: #5a6963; --line: #d8e0dc;
   --accent: #0d6b58; --accent-ink: #ffffff; --accent-soft: #e2f1ec;
@@ -33,7 +33,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-ui); padding: 20px 16px 40px; }
-.wrap { max-width: 1400px; margin: 0 auto; display: grid; gap: 16px; }
+.wrap { max-width: 1500px; margin: 0 auto; display: grid; gap: 16px; }
 h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
 h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; font-weight: 600; }
 button, select, input { font: inherit; color: inherit; }
@@ -60,27 +60,34 @@ header.top p { margin: 2px 0 0; color: var(--muted); }
 .tag.err { background: var(--err-bg); color: var(--err); }
 .tag.ok { background: var(--ok-bg); color: var(--ok); }
 
-.main { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; align-items: start; }
+.main { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.field { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 4px 6px; min-width: 0; }
 
 .cols { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .col { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 6px; }
-.col.off { opacity: 0.55; }
-.col-head { display: flex; align-items: center; gap: 8px; }
-.col-head .src { font-family: var(--f-data); font-size: 12px; color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.move { display: flex; gap: 2px; }
-.move button { border: 1px solid var(--line); background: var(--bg); border-radius: 5px; width: 24px; height: 22px; padding: 0; font-size: 11px; color: var(--muted); }
+.col-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.col-head .api { font-family: var(--f-data); font-size: 12.5px; font-weight: 500; }
+.col-head .lbl { color: var(--muted); font-size: 12px; flex: 1; }
+.col-head .req { color: var(--err); font-size: 11px; font-weight: 600; }
 .col-body { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.col-body input[type=text], .col-body select, .opts select { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 4px 6px; min-width: 0; }
 .col-body label { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
 .col-body label.req-on { color: var(--err); font-weight: 600; }
+.col .hint { grid-column: 1 / -1; font-size: 11.5px; color: var(--accent); margin: 0; }
+.fixed-list .col { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; padding: 6px 10px; }
+.fixed-list .col-head { flex-direction: column; gap: 0; }
 
 .opts { display: grid; gap: 8px; }
 .opts label { display: flex; gap: 8px; align-items: center; }
 .opts .row { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; }
+.code-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.code-row label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); }
 .note { font-size: 12px; color: var(--muted); margin: 0; }
 
+.filebar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 8px 10px; background: var(--bg); border-radius: 8px; }
+.filebar label { display: flex; gap: 6px; align-items: center; font-weight: 500; }
+.filebar .field { width: auto; min-width: 120px; }
 .summary { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: baseline; }
 .stat b { font-size: 22px; font-variant-numeric: tabular-nums; margin-right: 4px; }
 .stat.e b { color: var(--err); }
@@ -91,30 +98,32 @@ header.top p { margin: 2px 0 0; color: var(--muted); }
 .chip.warn { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
 .chip.on { outline: 2px solid currentColor; outline-offset: 1px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.toolbar .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.toolbar .checks label { display: flex; gap: 6px; align-items: center; }
 
 .tablebox { overflow: auto; max-height: 68vh; border: 1px solid var(--line); border-radius: 8px; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
 th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; white-space: nowrap; }
-th { position: sticky; top: 0; background: var(--surface); z-index: 1; font-size: 12px; font-weight: 600; color: var(--muted); }
+th { position: sticky; top: 0; background: var(--surface); z-index: 1; font-size: 12px; font-weight: 600; color: var(--ink); font-family: var(--f-data); }
+th .lbl { display: block; font-family: var(--f-ui); font-weight: 400; font-size: 11px; color: var(--muted); }
 th .req { color: var(--err); }
-td.n { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+td.n { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 tr.r-err td.n { box-shadow: inset 4px 0 0 var(--err); }
 tr.r-warn td.n { box-shadow: inset 4px 0 0 var(--warn); }
-td.v { font-family: var(--f-data); font-size: 12.5px; max-width: 320px; white-space: normal; min-width: 90px; cursor: text; }
-td.v:hover { background: var(--accent-soft); }
+td.v { font-family: var(--f-data); font-size: 12.5px; max-width: 320px; white-space: normal; min-width: 90px; }
+td.v[contenteditable="true"] { cursor: text; }
+td.v[contenteditable="true"]:hover { background: var(--accent-soft); }
+td.v.const { color: var(--muted); }
 td.v:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--surface); }
 td.v.err { background: var(--err-bg); color: var(--err); }
 td.v.warn { background: var(--warn-bg); color: var(--warn); }
 td.v.err:empty::before { content: "Falta dato"; font-family: var(--f-ui); font-style: italic; font-weight: 600; }
 td.v.edited { box-shadow: inset 0 -2px 0 var(--accent); }
 td.v.fixed { background: var(--accent-soft); }
-td.n { white-space: nowrap; }
 .rowx { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 5px; font-size: 11px; padding: 1px 6px; margin-left: 8px; }
 .rowx:hover { border-color: var(--err); color: var(--err); }
-tr.r-off td.v { opacity: 0.4; text-decoration: line-through; cursor: default; }
-tr.r-off td.v:hover { background: none; }
+tr.r-off td.v { opacity: 0.4; text-decoration: line-through; }
 tr.r-off .rowx { color: var(--accent); border-color: var(--accent); }
-td.v .msg { display: block; font-family: var(--f-ui); font-size: 11px; font-weight: 600; }
 .empty { padding: 40px; text-align: center; color: var(--muted); }
 .error-box { background: var(--err-bg); color: var(--err); border-radius: 8px; padding: 10px 14px; font-weight: 500; }
 .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
@@ -131,10 +140,10 @@ td.v .msg { display: block; font-family: var(--f-ui); font-size: 11px; font-weig
   <header class="top">
     <div>
       <h1>Convertidor GPX a CSV</h1>
-      <p>Todo se procesa en tu computadora. Los datos de los clientes no se suben a ningún sitio.</p>
+      <p>Plantilla de socios de negocio para SAP. Todo se procesa en tu computadora; los datos no se suben a ningún sitio.</p>
     </div>
     <div class="legend">
-      <span class="l-err">Falta dato o formato inválido</span>
+      <span class="l-err">Falta dato o no es válido</span>
       <span class="l-warn">Revisar</span>
       <span class="l-fix">Corregido automáticamente</span>
       <span class="l-ed">Editado a mano</span>
@@ -151,39 +160,68 @@ td.v .msg { display: block; font-family: var(--f-ui); font-size: 11px; font-weig
 
   <div class="main">
     <aside class="panel">
-      <div class="toolbar"><h2>Columnas y formatos</h2><button class="btn small" id="resetCols">Restablecer</button></div>
-      <p class="note">Marca las columnas que van al CSV, cámbiales el nombre y elige el formato. Esta configuración se recuerda para los próximos archivos.</p>
-      <ul class="cols" id="cols"></ul>
+      <div class="toolbar"><h2>Datos de cada cliente</h2><button class="btn small" id="resetCols">Restablecer plantilla</button></div>
+      <p class="note">De dónde sale cada columna de la plantilla. Las obligatorias se marcan en rojo cuando faltan.</p>
+      <ul class="cols" id="colsMain"></ul>
+
+      <h2>Código de cliente (CardCode)</h2>
+      <div class="code-row">
+        <label>Prefijo<input class="field" type="text" id="codePrefix" maxlength="10"></label>
+        <label>Empieza en<input class="field" type="number" id="codeStart" min="0"></label>
+        <label>Dígitos<input class="field" type="number" id="codeDigits" min="0" max="12"></label>
+      </div>
+      <p class="note" id="codeNote"></p>
+
+      <h2>Valores fijos para todos</h2>
+      <ul class="cols fixed-list" id="colsFixed"></ul>
+
       <h2>Lectura del GPX</h2>
       <div class="opts">
         <label><input type="checkbox" id="splitName"> Separar el nombre por "/" en negocio, propietario, teléfono, dirección, municipio y departamento</label>
-        <label><input type="checkbox" id="splitDesc"> Separar la descripción en columnas (líneas tipo <code>Teléfono: 9800…</code>)</label>
+        <label><input type="checkbox" id="splitDesc"> Separar la descripción en columnas (líneas tipo <code>RTN: 0801…</code>)</label>
       </div>
+
       <h2>Exportación</h2>
       <div class="opts">
-        <div class="row"><span>Separador</span>
-          <select id="sep"><option value=",">Coma ( , )</option><option value=";">Punto y coma ( ; )</option></select></div>
-        <label><input type="checkbox" id="bom"> Compatible con Excel (UTF-8 con BOM)</label>
-        <p class="note">Con esta opción Excel muestra bien las tildes y la ñ. Si la plataforma muestra un carácter raro al inicio del primer encabezado, desmárcala.</p>
-        <p class="note">Excel decide cómo separar un CSV según la configuración regional de Windows, por eso a veces lo muestra todo en una columna. Para revisar los datos usa <b>Descargar Excel (revisión)</b>; el CSV es el que se sube a la plataforma.</p>
+        <div class="row"><span>Formato</span>
+          <select class="field" id="fmt">
+            <option value=",">CSV separado por comas</option>
+            <option value=";">CSV separado por punto y coma</option>
+            <option value="tab">Texto Unicode con tabulaciones (.txt)</option>
+          </select></div>
+        <label><input type="checkbox" id="bom"> CSV en UTF-8 con BOM (Excel muestra bien tildes y ñ)</label>
+        <p class="note">Si al importar en SAP las tildes o la ñ salen mal, prueba el formato <b>Texto Unicode con tabulaciones</b>. Si el primer encabezado sale con un carácter raro, desmarca la opción BOM.</p>
       </div>
     </aside>
 
     <section class="panel">
+      <div class="filebar" id="filebar" hidden>
+        <label for="fRuta">Ruta <input class="field" type="text" id="fRuta"></label>
+        <label for="fDia">Día de visita
+          <select class="field" id="fDia">
+            <option value="">(sin día)</option>
+            <option>LUNES</option><option>MARTES</option><option>MIERCOLES</option><option>JUEVES</option>
+            <option>VIERNES</option><option>SABADO</option><option>DOMINGO</option>
+          </select></label>
+        <span class="note">Se toman del nombre del archivo; puedes cambiarlos.</span>
+      </div>
       <div class="toolbar">
         <div class="summary" id="summary"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" id="downloadAll" hidden>Descargar todos</button>
           <button class="btn" id="downloadXlsx" title="Para revisar en Excel: columnas separadas, filtros y errores en rojo">Descargar Excel (revisión)</button>
-          <button class="btn primary" id="download" title="Archivo para subir a la plataforma">Descargar CSV</button>
+          <button class="btn primary" id="download" title="Archivo para importar en SAP">Descargar CSV</button>
         </div>
       </div>
       <div class="toolbar">
         <div class="chips" id="chips"></div>
-        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="onlyIssues"> Mostrar solo filas con problemas</label>
+        <div class="checks">
+          <label><input type="checkbox" id="showFixed"> Mostrar columnas con valor fijo</label>
+          <label><input type="checkbox" id="onlyIssues"> Solo filas con problemas</label>
+        </div>
       </div>
       <div class="tablebox"><table id="table"></table></div>
-      <p class="note">Haz clic en cualquier celda para corregirla; al salir se aplica el formato. Usa <b>Excluir</b> para dejar fuera del CSV los puntos que no son clientes (por ejemplo "IMP 01"). Pasa el mouse sobre el número de fila para ver el texto original del GPX.</p>
+      <p class="note">Haz clic en una celda para corregirla; al salir se aplica el formato. Usa <b>Excluir</b> para dejar fuera los puntos que no son clientes (por ejemplo "IMP 01"). Pasa el mouse sobre el número de fila para ver el texto original del GPX.</p>
     </section>
   </div>
 </div>
@@ -195,6 +233,7 @@ const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '
 const clean = v => String(v ?? '').replace(/\s+/g, ' ').trim();
 const ok = value => ({ value, level: 'ok' });
 const bad = (value, msg) => ({ value, level: 'err', msg });
+const warn = (value, msg) => ({ value, level: 'warn', msg });
 
 /* ---------- Formatos ---------- */
 const SMALL = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'e', 'el']);
@@ -219,11 +258,16 @@ function fmtId(v) {
   const d = s.replace(/\D/g, '');
   return d.length === 13 ? ok(`${d.slice(0, 4)}-${d.slice(4, 8)}-${d.slice(8)}`) : bad(s, 'La identidad debe tener 13 dígitos');
 }
+function fmtRtn(v) {
+  const s = clean(v); if (!s) return ok('');
+  const d = s.replace(/\D/g, '');
+  return d.length === 14 ? ok(d) : warn(s, 'El RTN debe tener 14 dígitos');
+}
 function fmtCoord(v) {
   const s = clean(v).replace(',', '.'); if (!s) return ok('');
   const n = Number(s);
   if (!isFinite(n)) return bad(s, 'Coordenada inválida');
-  if (n === 0) return { value: '0.000000', level: 'warn', msg: 'Coordenada en 0' };
+  if (n === 0) return warn('0.000000', 'Coordenada en 0');
   return ok(n.toFixed(6));
 }
 function fmtEmail(v) {
@@ -232,21 +276,16 @@ function fmtEmail(v) {
 }
 const FORMATS = {
   texto:     { label: 'Texto (limpia espacios)', fn: v => ok(clean(v)) },
-  titulo:    { label: 'Nombre Propio', fn: v => ok(titleCase(clean(v))) },
   mayus:     { label: 'MAYÚSCULAS', fn: v => ok(clean(v).toLocaleUpperCase('es')) },
+  titulo:    { label: 'Nombre Propio', fn: v => ok(titleCase(clean(v))) },
   telefono:  { label: 'Teléfono 9800-1100', fn: fmtPhone },
+  rtn:       { label: 'RTN (14 dígitos)', fn: fmtRtn },
   identidad: { label: 'Identidad 0801-1990-12345', fn: fmtId },
   digitos:   { label: 'Solo dígitos', fn: v => ok(clean(v).replace(/\D/g, '')) },
   coord:     { label: 'Coordenada (6 decimales)', fn: fmtCoord },
   correo:    { label: 'Correo (minúsculas)', fn: fmtEmail },
   original:  { label: 'Sin cambios', fn: v => ok(String(v ?? '')) },
 };
-function evalCell(raw, c) {
-  let r = (FORMATS[c.format] || FORMATS.texto).fn(raw);
-  if (c.required && r.value === '') r = bad('', 'Dato obligatorio vacío');
-  if (r.level === 'ok' && r.value.includes('�')) r = { ...r, level: 'warn', msg: 'Carácter dañado (�): revisa tildes o ñ' };
-  return r;
-}
 
 /* ---------- Codificación ---------- */
 const CP1252 = (() => {
@@ -296,7 +335,7 @@ function parseGpx(text) {
     return rec;
   });
 }
-// "Teléfono: 9800 / Dirección: ..." o tabla HTML dentro de <desc>
+// "RTN: 0801... / Vendedor: 12" o tabla HTML dentro de <desc>
 function splitKV(text) {
   let lines;
   if (/<[a-z][\s\S]*>/i.test(text)) {
@@ -319,19 +358,38 @@ function splitKV(text) {
   }
   return { pairs, rest: rest.join(' ') };
 }
-/* ---------- Nombre separado por "/" ---------- */
-const DEPTOS = ['ATLANTIDA', 'CHOLUTECA', 'COLON', 'COMAYAGUA', 'COPAN', 'CORTES', 'EL PARAISO', 'FRANCISCO MORAZAN',
-  'GRACIAS A DIOS', 'INTIBUCA', 'ISLAS DE LA BAHIA', 'LA PAZ', 'LEMPIRA', 'OCOTEPEQUE', 'OLANCHO', 'SANTA BARBARA', 'VALLE', 'YORO'];
-const FM = 'FRANCISCO MORAZAN';
-const MUNIS = {
-  'DISTRITO CENTRAL': FM, 'TEGUCIGALPA': FM, 'COMAYAGUELA': FM, 'VALLE DE ANGELES': FM, 'SANTA LUCIA': FM, 'OJOJONA': FM,
-  'TALANGA': FM, 'SABANAGRANDE': FM, 'SANTA ANA': FM, 'SAN ANTONIO DE ORIENTE': FM, 'TATUMBLA': FM, 'VILLA DE SAN FRANCISCO': FM,
-  'CEDROS': FM, 'GUAIMACA': FM, 'LEPATERIQUE': FM, 'MARAITA': FM, 'NUEVA ARMENIA': FM, 'EL PORVENIR': FM, 'CANTARRANAS': FM,
-  'SAN PEDRO SULA': 'CORTES', 'CHOLOMA': 'CORTES', 'VILLANUEVA': 'CORTES', 'LA LIMA': 'CORTES', 'PUERTO CORTES': 'CORTES', 'OMOA': 'CORTES',
-  'LA CEIBA': 'ATLANTIDA', 'TELA': 'ATLANTIDA', 'SIGUATEPEQUE': 'COMAYAGUA', 'DANLI': 'EL PARAISO', 'JUTICALPA': 'OLANCHO',
-  'CATACAMAS': 'OLANCHO', 'SANTA ROSA DE COPAN': 'COPAN', 'EL PROGRESO': 'YORO', 'OLANCHITO': 'YORO',
+
+/* ---------- Catálogo de Honduras: 18 departamentos, 298 municipios ---------- */
+const HN_MUNIS = {
+  'ATLANTIDA': 'LA CEIBA|EL PORVENIR|TELA|JUTIAPA|LA MASICA|SAN FRANCISCO|ARIZONA|ESPARTA',
+  'CHOLUTECA': 'CHOLUTECA|APACILAGUA|CONCEPCION DE MARIA|DUYURE|EL CORPUS|EL TRIUNFO|MARCOVIA|MOROLICA|NAMASIGUE|OROCUINA|PESPIRE|SAN ANTONIO DE FLORES|SAN ISIDRO|SAN JOSE|SAN MARCOS DE COLON|SANTA ANA DE YUSGUARE',
+  'COLON': 'TRUJILLO|BALFATE|IRIONA|LIMON|SABA|SANTA FE|SANTA ROSA DE AGUAN|SONAGUERA|TOCOA|BONITO ORIENTAL',
+  'COMAYAGUA': 'COMAYAGUA|AJUTERIQUE|EL ROSARIO|ESQUIAS|HUMUYA|LA LIBERTAD|LAMANI|LA TRINIDAD|LEJAMANI|MEAMBAR|MINAS DE ORO|OJOS DE AGUA|SAN JERONIMO|SAN JOSE DE COMAYAGUA|SAN JOSE DEL POTRERO|SAN LUIS|SAN SEBASTIAN|SIGUATEPEQUE|VILLA DE SAN ANTONIO|LAS LAJAS|TAULABE',
+  'COPAN': 'SANTA ROSA DE COPAN|CABANAS|CONCEPCION|COPAN RUINAS|CORQUIN|CUCUYAGUA|DOLORES|DULCE NOMBRE|EL PARAISO|FLORIDA|LA JIGUA|LA UNION|NUEVA ARCADIA|SAN AGUSTIN|SAN ANTONIO|SAN JERONIMO|SAN JOSE|SAN JUAN DE OPOA|SAN NICOLAS|SAN PEDRO|SANTA RITA|TRINIDAD DE COPAN|VERACRUZ',
+  'CORTES': 'SAN PEDRO SULA|CHOLOMA|OMOA|PIMIENTA|POTRERILLOS|PUERTO CORTES|SAN ANTONIO DE CORTES|SAN FRANCISCO DE YOJOA|SAN MANUEL|SANTA CRUZ DE YOJOA|VILLANUEVA|LA LIMA',
+  'EL PARAISO': 'YUSCARAN|ALAUCA|DANLI|EL PARAISO|GUINOPE|JACALEAPA|LIURE|MOROCELI|OROPOLI|POTRERILLOS|SAN ANTONIO DE FLORES|SAN LUCAS|SAN MATIAS|SOLEDAD|TEUPASENTI|TEXIGUAT|VADO ANCHO|YAUYUPE|TROJES',
+  'FRANCISCO MORAZAN': 'DISTRITO CENTRAL|ALUBAREN|CEDROS|CURAREN|EL PORVENIR|GUAIMACA|LA LIBERTAD|LA VENTA|LEPATERIQUE|MARAITA|MARALE|NUEVA ARMENIA|OJOJONA|ORICA|REITOCA|SABANAGRANDE|SAN ANTONIO DE ORIENTE|SAN BUENAVENTURA|SAN IGNACIO|CANTARRANAS|SAN MIGUELITO|SANTA ANA|SANTA LUCIA|TALANGA|TATUMBLA|VALLE DE ANGELES|VILLA DE SAN FRANCISCO|VALLECILLO',
+  'GRACIAS A DIOS': 'PUERTO LEMPIRA|BRUS LAGUNA|AHUAS|JUAN FRANCISCO BULNES|VILLEDA MORALES|WAMPUSIRPE',
+  'INTIBUCA': 'LA ESPERANZA|CAMASCA|COLOMONCAGUA|CONCEPCION|DOLORES|INTIBUCA|JESUS DE OTORO|MAGDALENA|MASAGUARA|SAN ANTONIO|SAN ISIDRO|SAN JUAN|SAN MARCOS DE LA SIERRA|SAN MIGUEL GUANCAPLA|SANTA LUCIA|YAMARANGUILA|SAN FRANCISCO DE OPALACA',
+  'ISLAS DE LA BAHIA': 'ROATAN|GUANAJA|JOSE SANTOS GUARDIOLA|UTILA',
+  'LA PAZ': 'LA PAZ|AGUANQUETERIQUE|CABANAS|CANE|CHINACLA|GUAJIQUIRO|LAUTERIQUE|MARCALA|MERCEDES DE ORIENTE|OPATORO|SAN ANTONIO DEL NORTE|SAN JOSE|SAN JUAN|SAN PEDRO DE TUTULE|SANTA ANA|SANTA ELENA|SANTA MARIA|SANTIAGO DE PURINGLA|YARULA',
+  'LEMPIRA': 'GRACIAS|BELEN|CANDELARIA|COLOLACA|ERANDIQUE|GUALCINCE|GUARITA|LA CAMPA|LA IGUALA|LAS FLORES|LA UNION|LA VIRTUD|LEPAERA|MAPULACA|PIRAERA|SAN ANDRES|SAN FRANCISCO|SAN JUAN GUARITA|SAN MANUEL COLOHETE|SAN RAFAEL|SAN SEBASTIAN|SANTA CRUZ|TALGUA|TAMBLA|TOMALA|VALLADOLID|VIRGINIA|SAN MARCOS DE CAIQUIN',
+  'OCOTEPEQUE': 'OCOTEPEQUE|BELEN GUALCHO|CONCEPCION|DOLORES MERENDON|FRATERNIDAD|LA ENCARNACION|LA LABOR|LUCERNA|MERCEDES|SAN FERNANDO|SAN FRANCISCO DEL VALLE|SAN JORGE|SAN MARCOS|SANTA FE|SENSENTI|SINUAPA',
+  'OLANCHO': 'JUTICALPA|CAMPAMENTO|CATACAMAS|CONCORDIA|DULCE NOMBRE DE CULMI|EL ROSARIO|ESQUIPULAS DEL NORTE|GUALACO|GUARIZAMA|GUATA|GUAYAPE|JANO|LA UNION|MANGULILE|MANTO|SALAMA|SAN ESTEBAN|SAN FRANCISCO DE BECERRA|SAN FRANCISCO DE LA PAZ|SANTA MARIA DEL REAL|SILCA|YOCON|PATUCA',
+  'SANTA BARBARA': 'SANTA BARBARA|ARADA|ATIMA|AZACUALPA|CEGUACA|CONCEPCION DEL NORTE|CONCEPCION DEL SUR|CHINDA|EL NISPERO|GUALALA|ILAMA|LAS VEGAS|MACUELIZO|NARANJITO|NUEVO CELILAC|NUEVA FRONTERA|PETOA|PROTECCION|QUIMISTAN|SAN FRANCISCO DE OJUERA|SAN JOSE DE LAS COLINAS|SAN LUIS|SAN MARCOS|SAN NICOLAS|SAN PEDRO ZACAPA|SAN VICENTE CENTENARIO|SANTA RITA|TRINIDAD',
+  'VALLE': 'NACAOME|ALIANZA|AMAPALA|ARAMECINA|CARIDAD|GOASCORAN|LANGUE|SAN FRANCISCO DE CORAY|SAN LORENZO',
+  'YORO': 'YORO|ARENAL|EL NEGRITO|EL PROGRESO|JOCON|MORAZAN|OLANCHITO|SANTA RITA|SULACO|VICTORIA|YORITO',
 };
-const MUNI_LIST = Object.keys(MUNIS);
+const HN = Object.fromEntries(Object.entries(HN_MUNIS).map(([d, s]) => [d, s.split('|')]));
+const DEPTOS = Object.keys(HN);
+const MUNI_DEPS = {};
+for (const [d, list] of Object.entries(HN)) for (const m of list) (MUNI_DEPS[m] ||= []).push(d);
+// nombres populares y abreviaturas que no son el nombre oficial
+const MUNI_ALIAS = { 'TEGUCIGALPA': 'DISTRITO CENTRAL', 'COMAYAGUELA': 'DISTRITO CENTRAL', 'TGU': 'DISTRITO CENTRAL', 'SAN JUAN DE FLORES': 'CANTARRANAS', 'SPS': 'SAN PEDRO SULA' };
+const DEPTO_ALIAS = { 'FCO MORAZAN': 'FRANCISCO MORAZAN', 'FRANC MORAZAN': 'FRANCISCO MORAZAN', 'F M': 'FRANCISCO MORAZAN', 'FM': 'FRANCISCO MORAZAN', 'IB': 'ISLAS DE LA BAHIA', 'STA BARBARA': 'SANTA BARBARA' };
+const ALL_MUNIS = [...Object.keys(MUNI_DEPS), ...Object.keys(MUNI_ALIAS)];
+const ALL_DEPTOS = [...DEPTOS, ...Object.keys(DEPTO_ALIAS)];
+
 const catKey = s => norm(s).toUpperCase().replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim()
   .replace(/^(DEPARTAMENTO|DEPTO|DPTO|MUNICIPIO|MUN)( DE)? /, '');
 function lev(a, b) {
@@ -347,15 +405,35 @@ function lev(a, b) {
   return d[b.length];
 }
 // Busca el nombre en el catálogo tolerando errores de escritura ("DIATRITO CENTRAL")
-function matchCat(s, list) {
+function matchCat(s, list, aliases = {}) {
   const raw = clean(s), n = catKey(raw);
   if (!n) return null;
   let best = null, bd = 99;
   for (const c of list) { const d = n === c ? 0 : lev(n, c); if (d < bd) { bd = d; best = c; } }
-  if (bd > (n.length >= 8 ? 2 : 1)) return null;
-  const same = norm(raw).toUpperCase() === best;
-  return { value: same ? raw.toUpperCase() : best, fixed: !same };
+  if (bd > (n.length >= 8 ? 2 : n.length >= 4 ? 1 : 0)) return null;
+  const real = aliases[best] || best;
+  const same = norm(raw).toUpperCase() === real;
+  return { value: same ? raw.toUpperCase() : real, fixed: !same };
 }
+const matchDepto = s => matchCat(s, ALL_DEPTOS, DEPTO_ALIAS);
+// Municipio: primero dentro del departamento indicado, luego en todo el país
+const matchMuni = (s, dep) => (dep && HN[dep] && matchCat(s, HN[dep])) || matchCat(s, ALL_MUNIS, MUNI_ALIAS);
+
+// Revisa que el municipio pertenezca al departamento
+function placeCheck(muni, dep) {
+  const m = catKey(muni), d = catKey(dep), r = {};
+  if (d && !HN[d]) r.dep = DEPTO_ALIAS[d] ? warn(dep, `Nombre oficial del departamento: ${DEPTO_ALIAS[d]}`) : bad(dep, 'No es un departamento de Honduras');
+  if (!m) return r;
+  if (MUNI_ALIAS[m]) r.muni = warn(muni, `Nombre oficial del municipio: ${MUNI_ALIAS[m]}`);
+  else if (!MUNI_DEPS[m]) r.muni = warn(muni, 'Municipio no encontrado en el catálogo de Honduras');
+  else if (HN[d] && !HN[d].includes(m)) {
+    const msg = `${muni} pertenece a ${MUNI_DEPS[m].join(' o ')}, no a ${dep}`;
+    r.muni = bad(muni, msg); r.dep = bad(dep, msg);
+  }
+  return r;
+}
+
+/* ---------- Nombre separado por "/" ---------- */
 const PHONE_RE = /((?:\+?50[2-7][\s-]?)?\d{4}[\s-]?\d{4})(?!\d)/;
 function isPhone(p) {
   const d = p.replace(/\D/g, '');
@@ -363,7 +441,7 @@ function isPhone(p) {
 }
 const SPLIT_KEYS = ['negocio', 'propietario', 'telefono', 'direccion', 'municipio', 'departamento'];
 function splitName(text) {
-  let parts = text.split('/').map(clean).filter(Boolean);
+  let parts = String(text).split('/').map(clean).filter(Boolean);
   const out = Object.fromEntries(SPLIT_KEYS.map(k => [k, ''])), fix = {};
   if (parts.length < 2) { out.negocio = parts[0] || ''; return { out, fix }; }
   let pi = parts.findIndex((p, i) => i > 0 && isPhone(p));
@@ -386,18 +464,19 @@ function splitName(text) {
   out.negocio = left[0] || '';
   out.propietario = left.slice(1).join(' / ');
   out.telefono = phones.join(' / ');
+  let depKey = '';
   if (right.length) {
-    const d = matchCat(right.at(-1), DEPTOS);
-    if (d) { if (d.fixed) fix.departamento = `Corregido automáticamente (decía "${right.at(-1)}")`; out.departamento = d.value; right.pop(); }
+    const d = matchDepto(right.at(-1));
+    if (d) { if (d.fixed) fix.departamento = `Corregido automáticamente (decía "${right.at(-1)}")`; out.departamento = d.value; depKey = catKey(d.value); right.pop(); }
   }
   if (right.length) {
-    const last = right.at(-1), m = matchCat(last, MUNI_LIST);
+    const last = right.at(-1), m = matchMuni(last, depKey);
     if (m) { if (m.fixed) fix.municipio = `Corregido automáticamente (decía "${last}")`; out.municipio = m.value; right.pop(); }
     else if (out.departamento && right.length > 1) { out.municipio = last; right.pop(); }
   }
   if (!out.departamento && out.municipio) {
-    const dep = MUNIS[catKey(out.municipio)];
-    if (dep) { out.departamento = dep; fix.departamento = 'Completado según el municipio'; }
+    const deps = MUNI_DEPS[catKey(out.municipio)];
+    if (deps && deps.length === 1) { out.departamento = deps[0]; fix.departamento = 'Completado según el municipio'; }
   }
   out.direccion = right.join(' / ');
   return { out, fix };
@@ -424,78 +503,138 @@ function expand(rec) {
   return { row: out, meta: { fix, orig } };
 }
 
+/* ---------- Plantilla SAP (socios de negocio) ---------- */
+// def: de dónde sale el dato por defecto. aliases: campos del GPX que se usan si vienen.
+const T = (api, db, label, def, extra = {}) => ({ api, db, label, def, ...extra });
+const TEMPLATE = [
+  T('CardCode', 'CardCode', 'Código del cliente', { src: 'auto', required: true }, { max: 15 }),
+  T('CardName', 'CardName', 'Nombre (negocio)', { src: 'field', field: 'negocio', format: 'mayus', required: true }, { max: 100 }),
+  T('CardType', 'CardType', 'Tipo de socio', { src: 'fixed', value: 'cCustomer' }),
+  T('GroupCode', 'GroupCode', 'Grupo de clientes', { src: 'fixed', value: '104' }, { max: 6 }),
+  T('U_Ruta', 'U_Ruta', 'Ruta', { src: 'ruta', format: 'mayus', required: true }),
+  T('U_Latitud', 'U_Latitud', 'Latitud', { src: 'field', field: 'lat', format: 'coord', required: true }),
+  T('U_Longitud', 'U_Longitud', 'Longitud', { src: 'field', field: 'lon', format: 'coord', required: true }),
+  T('Address', 'Address', 'Dirección', { src: 'field', field: 'direccion', format: 'mayus', required: true }, { max: 100 }),
+  T('Phone1', 'Phone1', 'Teléfono', { src: 'field', field: 'telefono', format: 'telefono', required: true }, { max: 20 }),
+  T('Notes', 'Notes', 'Comentarios (propietario)', { src: 'field', field: 'propietario', format: 'mayus', required: true }, { max: 100 }),
+  T('PayTermsGrpCode', 'GroupNum', 'Condición de pago', { src: 'fixed', value: '-1' }, { max: 6 }),
+  T('PriceListNum', 'ListNum', 'Lista de precios', { src: 'fixed', value: '' }, { max: 6, aliases: ['lista de precios', 'lista precios', 'pricelistnum', 'listnum'] }),
+  T('SalesPersonCode', 'SlpCode', 'Código de vendedor', { src: 'fixed', value: '' }, { max: 11, aliases: ['vendedor', 'codigo vendedor', 'salespersoncode', 'slpcode'] }),
+  T('City', 'City', 'Municipio', { src: 'field', field: 'municipio', format: 'mayus', required: true }, { max: 100 }),
+  T('County', 'County', 'Departamento', { src: 'field', field: 'departamento', format: 'mayus', required: true }, { max: 100 }),
+  T('Country', 'Country', 'País', { src: 'fixed', value: 'HN' }, { max: 3 }),
+  T('DebitorAccount', 'DebPayAcct', 'Cuenta por cobrar', { src: 'fixed', value: '_SYS00000001984' }, { max: 15 }),
+  T('U_Dia_Visita', 'U_Dia_Visita', 'Día de visita', { src: 'dia', format: 'mayus', required: true }),
+  T('Territory', 'Territory', 'Territorio', { src: 'fixed', value: '' }, { max: 11, aliases: ['territorio', 'territory'] }),
+  T('Properties1', 'QryGroup1', 'Propiedad 1', { src: 'fixed', value: 'tYES' }),
+  T('U_TaxCode', 'U_TaxCode', 'Código de impuesto', { src: 'fixed', value: 'EXE' }),
+  T('RTN', 'RTN', 'RTN', { src: 'fixed', value: '', format: 'rtn' }, { aliases: ['rtn', 'r.t.n', 'r t n'] }),
+];
+const SRC_LABELS = { auto: 'Código automático', ruta: 'Ruta del archivo', dia: 'Día de visita del archivo', fixed: 'Valor fijo' };
+const PER_CLIENT = c => c.src !== 'fixed';
+
 /* ---------- Estado ---------- */
-const STORE = 'gpx2csv.v1';
-const state = { files: [], active: 0, cols: {}, order: [], splitName: true, splitDesc: true, sep: ',', bom: true, onlyIssues: false, filterCol: null };
+const STORE = 'gpx2csv.v2';
+const state = {
+  files: [], active: 0, tcfg: {}, codePrefix: '', codeStart: 1, codeDigits: 0,
+  splitName: true, splitDesc: true, fmt: ',', bom: true, showFixed: false, onlyIssues: false, filterCol: null,
+};
+const SAVED = ['tcfg', 'codePrefix', 'codeStart', 'codeDigits', 'splitName', 'splitDesc', 'fmt', 'bom', 'showFixed'];
 try {
   const s = JSON.parse(localStorage.getItem(STORE) || '{}');
-  Object.assign(state, { cols: s.cols || {}, order: s.order || [] });
-  for (const k of ['splitName', 'splitDesc', 'sep', 'bom']) if (k in s) state[k] = s[k];
+  for (const k of SAVED) if (k in s) state[k] = s[k];
 } catch {}
 function save() {
-  try { localStorage.setItem(STORE, JSON.stringify({ cols: state.cols, order: state.order, splitName: state.splitName, splitDesc: state.splitDesc, sep: state.sep, bom: state.bom })); } catch {}
+  try { localStorage.setItem(STORE, JSON.stringify(Object.fromEntries(SAVED.map(k => [k, state[k]])))); } catch {}
 }
-const DEFAULT_NAMES = { name: 'nombre', desc: 'descripcion', cmt: 'comentario', lat: 'latitud', lon: 'longitud', time: 'fecha' };
-function guess(key) {
-  const n = norm(key);
-  const c = { include: true, name: DEFAULT_NAMES[key] || key, format: 'texto', required: false };
-  if (SPLIT_KEYS.includes(key)) { c.required = true; c.format = key === 'telefono' ? 'telefono' : 'mayus'; }
-  else if (['lat', 'lon', 'latitud', 'longitud', 'latitude', 'longitude'].includes(n)) { c.format = 'coord'; c.required = true; }
-  else if (/tel|cel|phone|movil|whats/.test(n)) { c.format = 'telefono'; c.required = true; }
-  else if (n === 'name' || /nombre|cliente/.test(n)) c.required = true;
-  else if (/direcc|address|domicilio/.test(n)) c.required = true;
-  else if (/identidad|dni|cedula|dpi/.test(n)) c.format = 'identidad';
-  else if (/correo|email|e-mail/.test(n)) c.format = 'correo';
-  else if (['ele', 'sym', 'type', 'time'].includes(n)) c.include = false;
+const colCfg = col => state.tcfg[col.api] || (state.tcfg[col.api] = { src: 'fixed', field: '', value: '', format: 'texto', required: false, ...col.def });
+// Si un valor fijo está vacío y el GPX trae ese dato (ej. RTN), se usa el del GPX
+function source(col, f) {
+  const c = colCfg(col);
+  if (c.src === 'fixed' && c.value === '' && col.aliases && f) {
+    const k = f.keys.find(k => col.aliases.includes(norm(k)));
+    if (k) return { ...c, src: 'field', field: k, detected: true };
+  }
   return c;
 }
-const cfg = k => state.cols[k] || (state.cols[k] = guess(k));
+
+const DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'];
+// "1.- CD4R1 - LUNES   RECIBIDO 5-10-2026.gpx" → ruta CD4R1, día LUNES
+function fileInfo(name) {
+  const base = name.replace(/\.gpx$/i, '');
+  const ruta = (base.match(/\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{3,}\b/i) || [''])[0].toUpperCase();
+  const dia = DIAS.find(d => new RegExp(`\\b${d}\\b`).test(norm(base).toUpperCase())) || '';
+  return { ruta, dia };
+}
 
 function buildRows(f) {
   f.rows = []; f.meta = [];
   f.raw.forEach((r, i) => { const { row, meta } = expand(r); f.rows.push({ ...row, ...(f.edits[i] || {}) }); f.meta.push(meta); });
   f.keys = [];
   for (const r of f.rows) for (const k of Object.keys(r)) if (!f.keys.includes(k)) f.keys.push(k);
-  // las columnas nuevas se insertan junto a sus vecinas, no al final
-  f.keys.forEach((k, idx) => {
-    cfg(k);
-    if (state.order.includes(k)) return;
-    const next = f.keys.slice(idx + 1).find(n => state.order.includes(n));
-    state.order.splice(next ? state.order.indexOf(next) : state.order.length, 0, k);
-  });
 }
 const activeFile = () => state.files[state.active];
-const visibleKeys = () => { const present = new Set(state.files.flatMap(f => f.keys)); return state.order.filter(k => present.has(k)); };
-const includedKeys = () => visibleKeys().filter(k => cfg(k).include);
+const allKeys = () => {
+  const keys = [...SPLIT_KEYS, 'lat', 'lon'];
+  for (const f of state.files) for (const k of f.keys) if (!keys.includes(k)) keys.push(k);
+  return keys;
+};
+const codeFor = n => state.codePrefix + String(Number(state.codeStart || 0) + n).padStart(Number(state.codeDigits || 0), '0');
 
-function analyze(f) {
-  const keys = includedKeys();
+function rawValue(f, i, c, code) {
+  switch (c.src) {
+    case 'field': return f.rows[i][c.field] ?? '';
+    case 'auto': return code;
+    case 'ruta': return f.ruta;
+    case 'dia': return f.dia;
+    default: return c.value;
+  }
+}
+function evalCol(raw, c, col) {
+  let r = c.src === 'fixed' ? ok(String(raw)) : (FORMATS[c.format] || FORMATS.texto).fn(raw);
+  if (c.required && r.value === '') r = bad('', 'Dato obligatorio vacío');
+  if (col.max && r.value.length > col.max) r = bad(r.value, `Máximo ${col.max} caracteres (tiene ${r.value.length})`);
+  if (r.level === 'ok' && r.value.includes('�')) r = warn(r.value, 'Carácter dañado (�): revisa tildes o ñ');
+  return r;
+}
+
+function analyze(f, codeOffset) {
+  const srcs = TEMPLATE.map(col => [col, source(col, f)]);
   const perCol = {};
-  let errRows = 0, warnRows = 0;
+  let errRows = 0, warnRows = 0, n = 0;
   f.results = f.rows.map((r, i) => {
-    const cells = {}; let lvl = 'ok';
-    if (f.excluded.has(i)) {
-      for (const k of keys) cells[k] = ok(evalCell(r[k] ?? '', cfg(k)).value);
+    const off = f.excluded.has(i);
+    const code = off ? '' : codeFor(codeOffset + n++);
+    const cells = {};
+    for (const [col, c] of srcs) cells[col.api] = evalCol(rawValue(f, i, c, code), c, col);
+    if (off) {
+      for (const k in cells) cells[k] = ok(cells[k].value);
       return { cells, lvl: 'off' };
     }
-    for (const k of keys) {
-      const res = evalCell(r[k] ?? '', cfg(k));
-      cells[k] = res;
-      if (res.level !== 'ok') {
-        (perCol[k] ||= { err: 0, warn: 0 })[res.level]++;
-        if (res.level === 'err') lvl = 'err'; else if (lvl === 'ok') lvl = 'warn';
-      }
+    if (cells.City.level === 'ok' && cells.County.level === 'ok') {
+      const p = placeCheck(cells.City.value, cells.County.value);
+      if (p.muni) cells.City = p.muni;
+      if (p.dep) cells.County = p.dep;
+    }
+    let lvl = 'ok';
+    for (const [k, res] of Object.entries(cells)) {
+      if (res.level === 'ok') continue;
+      (perCol[k] ||= { err: 0, warn: 0 })[res.level]++;
+      if (res.level === 'err') lvl = 'err'; else if (lvl === 'ok') lvl = 'warn';
     }
     if (lvl === 'err') errRows++; else if (lvl === 'warn') warnRows++;
     return { cells, lvl };
   });
+  f.srcs = Object.fromEntries(srcs.map(([col, c]) => [col.api, c]));
   f.stats = { total: f.rows.length - f.excluded.size, excluded: f.excluded.size, errRows, warnRows, perCol };
+  return n;
 }
 
 /* ---------- Render ---------- */
 function render() {
-  state.files.forEach(analyze);
-  renderFiles(); renderCols(); renderSummary(); renderTable();
+  let offset = 0;
+  for (const f of state.files) { f.codeOffset = offset; offset += analyze(f, offset); }
+  renderFiles(); renderCols(); renderFileBar(); renderSummary(); renderTable();
 }
 function renderFiles() {
   $('#files').innerHTML = state.files.map((f, i) => `
@@ -506,23 +645,43 @@ function renderFiles() {
     </span>`).join('');
   $('#downloadAll').hidden = state.files.length < 2;
 }
+function srcOptions(c) {
+  const opts = allKeys().map(k => `<option value="field:${esc(k)}"${c.src === 'field' && c.field === k ? ' selected' : ''}>Dato del GPX: ${esc(k)}</option>`);
+  for (const [v, label] of Object.entries(SRC_LABELS)) opts.push(`<option value="${v}"${c.src === v ? ' selected' : ''}>${label}</option>`);
+  return opts.join('');
+}
 function renderCols() {
   const fmtOpts = Object.entries(FORMATS).map(([k, f]) => `<option value="${k}">${esc(f.label)}</option>`).join('');
-  const keys = visibleKeys();
-  $('#cols').innerHTML = keys.map((k, i) => {
-    const c = cfg(k), id = 'c' + i;
-    return `<li class="col ${c.include ? '' : 'off'}" data-k="${esc(k)}">
-      <div class="col-head">
-        <input type="checkbox" id="${id}-inc" data-f="include" ${c.include ? 'checked' : ''} aria-label="Incluir ${esc(k)}">
-        <span class="src" title="Campo en el GPX: ${esc(k)}">${esc(k)}</span>
-        <span class="move"><button data-mv="-1" aria-label="Subir">▲</button><button data-mv="1" aria-label="Bajar">▼</button></span>
-      </div>
+  const f = activeFile();
+  const head = col => `<div class="col-head"><span class="api">${col.api}</span><span class="lbl">${esc(col.label)}</span></div>`;
+  $('#colsMain').innerHTML = TEMPLATE.filter(col => PER_CLIENT(colCfg(col))).map(col => {
+    const c = colCfg(col), id = 'c-' + col.api;
+    return `<li class="col" data-api="${col.api}">${head(col)}
       <div class="col-body">
-        <input type="text" id="${id}-name" data-f="name" value="${esc(c.name)}" aria-label="Nombre en el CSV">
-        <select id="${id}-fmt" data-f="format">${fmtOpts.replace(`value="${c.format}"`, `value="${c.format}" selected`)}</select>
-        <label class="${c.required ? 'req-on' : ''}"><input type="checkbox" id="${id}-req" data-f="required" ${c.required ? 'checked' : ''}> Obligatorio (marcar en rojo si falta)</label>
+        <select class="field" id="${id}-src" data-f="src" aria-label="Origen de ${col.api}">${srcOptions(c)}</select>
+        ${c.src === 'auto' ? '<span></span>' : `<select class="field" id="${id}-fmt" data-f="format" aria-label="Formato">${fmtOpts.replace(`value="${c.format}"`, `value="${c.format}" selected`)}</select>`}
+        <label class="${c.required ? 'req-on' : ''}"><input type="checkbox" id="${id}-req" data-f="required" ${c.required ? 'checked' : ''}> Obligatorio${col.max ? ` · máx. ${col.max} caracteres` : ''}</label>
       </div></li>`;
-  }).join('') || '<li class="note">Carga un archivo para ver sus campos.</li>';
+  }).join('');
+  $('#colsFixed').innerHTML = TEMPLATE.filter(col => !PER_CLIENT(colCfg(col))).map(col => {
+    const c = colCfg(col), id = 'c-' + col.api, det = f && source(col, f).detected;
+    return `<li class="col" data-api="${col.api}">${head(col)}
+      <input class="field" type="text" id="${id}-val" data-f="value" value="${esc(c.value)}" placeholder="(vacío)" aria-label="Valor de ${col.api}">
+      <select class="field" id="${id}-src" data-f="src" aria-label="Origen de ${col.api}" style="grid-column:1/-1">${srcOptions(c)}</select>
+      ${det ? `<p class="hint">Este archivo trae el dato "${esc(source(col, f).field)}"; se usa en lugar del valor vacío.</p>` : ''}</li>`;
+  }).join('');
+  const usesAuto = TEMPLATE.some(col => colCfg(col).src === 'auto');
+  const last = state.files.reduce((s, f) => s + f.stats.total, 0);
+  $('#codeNote').textContent = !usesAuto ? 'Ninguna columna usa el código automático.'
+    : last ? `Códigos asignados: ${codeFor(0)} a ${codeFor(last - 1)}. La próxima vez empieza en ${Number(state.codeStart || 0) + last} para no repetir.`
+    : `Ejemplo: ${codeFor(0)}, ${codeFor(1)}, ${codeFor(2)}…`;
+}
+function renderFileBar() {
+  const f = activeFile();
+  $('#filebar').hidden = !f;
+  if (!f) return;
+  if (document.activeElement !== $('#fRuta')) $('#fRuta').value = f.ruta;
+  $('#fDia').value = f.dia;
 }
 function renderSummary() {
   const f = activeFile();
@@ -535,31 +694,33 @@ function renderSummary() {
     ${s.warnRows ? `<span class="stat w"><b>${s.warnRows}</b>por revisar</span>` : ''}
     ${s.excluded ? `<span class="stat"><b>${s.excluded}</b>excluidos</span>` : ''}`;
   $('#chips').innerHTML = Object.entries(s.perCol).map(([k, c]) => {
-    const n = c.err || c.warn;
-    return `<button class="chip ${c.err ? '' : 'warn'} ${state.filterCol === k ? 'on' : ''}" data-chip="${esc(k)}">${esc(cfg(k).name)}: ${n} ${c.err ? 'con problema' : 'por revisar'}</button>`;
+    const col = TEMPLATE.find(t => t.api === k);
+    return `<button class="chip ${c.err ? '' : 'warn'} ${state.filterCol === k ? 'on' : ''}" data-chip="${k}">${esc(col.label)}: ${c.err || c.warn} ${c.err ? 'con problema' : 'por revisar'}</button>`;
   }).join('');
 }
 function renderTable() {
   const f = activeFile(), t = $('#table');
   if (!f) { t.innerHTML = '<tr><td class="empty">Abre un archivo .gpx para empezar.</td></tr>'; return; }
-  const keys = includedKeys();
-  let html = `<thead><tr><th>#</th>${keys.map(k => `<th>${esc(cfg(k).name)}${cfg(k).required ? ' <span class="req" title="Obligatorio">*</span>' : ''}</th>`).join('')}</tr></thead><tbody>`;
+  const cols = TEMPLATE.filter(col => state.showFixed || PER_CLIENT(f.srcs[col.api]));
+  let html = `<thead><tr><th>#</th>${cols.map(col => `<th>${col.api}${f.srcs[col.api].required ? ' <span class="req" title="Obligatorio">*</span>' : ''}<span class="lbl">${esc(col.label)}</span></th>`).join('')}</tr></thead><tbody>`;
   let shown = 0;
   f.results.forEach((res, i) => {
     if (state.onlyIssues && (res.lvl === 'ok' || res.lvl === 'off')) return;
-    if (state.filterCol && (!res.cells[state.filterCol] || res.cells[state.filterCol].level === 'ok')) return;
+    if (state.filterCol && res.cells[state.filterCol].level === 'ok') return;
     shown++;
     const off = res.lvl === 'off', meta = f.meta[i];
     const orig = meta.orig ? ` title="Texto original: ${esc(clean(meta.orig))}"` : '';
-    html += `<tr class="r-${res.lvl}"><td class="n"${orig}>${i + 1}<button class="rowx" data-ex="${i}">${off ? 'Incluir' : 'Excluir'}</button></td>${keys.map(k => {
-      const c = res.cells[k], edited = f.edits[i] && k in f.edits[i];
-      const fixed = !edited && c.level === 'ok' && meta.fix[k];
-      const msg = c.msg || fixed || '';
-      const cls = ['v', c.level !== 'ok' ? c.level : '', edited ? 'edited' : '', fixed ? 'fixed' : ''].join(' ');
-      return `<td class="${cls}" contenteditable="${off ? 'false' : 'true'}" spellcheck="false" data-r="${i}" data-k="${esc(k)}"${msg ? ` title="${esc(msg)}"` : ''}>${esc(c.value)}</td>`;
+    html += `<tr class="r-${res.lvl}"><td class="n"${orig}>${i + 1}<button class="rowx" data-ex="${i}">${off ? 'Incluir' : 'Excluir'}</button></td>${cols.map(col => {
+      const c = res.cells[col.api], s = f.srcs[col.api];
+      const editable = !off && s.src === 'field';
+      const edited = s.src === 'field' && f.edits[i] && s.field in f.edits[i];
+      const fixed = s.src === 'field' && !edited && c.level === 'ok' && meta.fix[s.field];
+      const msg = c.msg || fixed || (s.src !== 'field' ? `${SRC_LABELS[s.src]}: se cambia en el panel` : '');
+      const cls = ['v', c.level !== 'ok' ? c.level : '', edited ? 'edited' : '', fixed ? 'fixed' : '', editable ? '' : 'const'].join(' ');
+      return `<td class="${cls}" contenteditable="${editable}" spellcheck="false" data-r="${i}" data-field="${editable ? esc(s.field) : ''}"${msg ? ` title="${esc(msg)}"` : ''}>${esc(c.value)}</td>`;
     }).join('')}</tr>`;
   });
-  if (!shown) html += `<tr><td class="empty" colspan="${keys.length + 1}">No hay filas con problemas. El archivo está listo.</td></tr>`;
+  if (!shown) html += `<tr><td class="empty" colspan="${cols.length + 1}">No hay filas con problemas. El archivo está listo.</td></tr>`;
   t.innerHTML = html + '</tbody>';
 }
 
@@ -569,20 +730,23 @@ async function addFiles(list) {
   for (const file of list) {
     try {
       const raw = parseGpx(decodeBuffer(await file.arrayBuffer()));
-      const f = { name: file.name, raw, edits: {}, excluded: new Set() };
+      const f = { name: file.name, raw, edits: {}, excluded: new Set(), ...fileInfo(file.name) };
       buildRows(f); state.files.push(f); state.active = state.files.length - 1;
     } catch (e) { errors.push(`${file.name}: ${e.message}`); }
   }
   $('#loadError').hidden = !errors.length;
   $('#loadError').textContent = errors.length ? 'No se pudo leer ' + errors.join(' · ') : '';
-  state.filterCol = null; save(); render();
+  state.filterCol = null; render();
 }
-function toCSV(f) {
-  const keys = includedKeys(), sep = state.sep;
-  const q = v => /["\r\n]/.test(v) || v.includes(sep) ? '"' + v.replace(/"/g, '""') + '"' : v;
-  const lines = [keys.map(k => q(cfg(k).name)).join(sep)];
-  f.rows.forEach((r, i) => !f.excluded.has(i) && lines.push(keys.map(k => q(evalCell(r[k] ?? '', cfg(k)).value)).join(sep)));
-  return (state.bom ? '﻿' : '') + lines.join('\r\n') + '\r\n';
+// Filas de salida con la estructura de la plantilla: 2 encabezados + datos
+function exportRows(f) {
+  const rows = [TEMPLATE.map(c => c.api), TEMPLATE.map(c => c.db)];
+  f.results.forEach(res => { if (res.lvl !== 'off') rows.push(TEMPLATE.map(col => res.cells[col.api].value)); });
+  return rows;
+}
+function toText(f, sep) {
+  const q = v => v.includes('"') || v.includes('\n') || v.includes('\r') || v.includes(sep) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  return exportRows(f).map(r => r.map(q).join(sep)).join('\r\n') + '\r\n';
 }
 function saveBlob(blob, name) {
   const a = document.createElement('a');
@@ -593,7 +757,18 @@ function saveBlob(blob, name) {
 }
 const baseName = f => f.name.replace(/\.gpx$/i, '');
 function download(f) {
-  saveBlob(new Blob([toCSV(f)], { type: 'text/csv;charset=utf-8' }), baseName(f) + '.csv');
+  if (state.fmt === 'tab') { // UTF-16 LE con BOM: "Texto Unicode" de Excel/SAP
+    const s = toText(f, '\t'), buf = new Uint8Array(2 + s.length * 2);
+    buf[0] = 0xFF; buf[1] = 0xFE;
+    for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); buf[2 + i * 2] = c & 255; buf[3 + i * 2] = c >> 8; }
+    saveBlob(new Blob([buf], { type: 'text/plain;charset=utf-16le' }), baseName(f) + '.txt');
+  } else {
+    saveBlob(new Blob([(state.bom ? '﻿' : '') + toText(f, state.fmt)], { type: 'text/csv;charset=utf-8' }), baseName(f) + '.csv');
+  }
+}
+function confirmErrors(files) {
+  const n = files.reduce((s, f) => s + f.stats.errRows, 0);
+  return !n || confirm(`Hay ${n} fila(s) con datos faltantes o inválidos (marcadas en rojo).\n¿Descargar de todas formas?`);
 }
 
 /* ---------- Excel (.xlsx) para revisar ---------- */
@@ -629,36 +804,39 @@ function zipFiles(files) {
 }
 const xesc = s => String(s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const colName = i => { let s = ''; for (i++; i; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
-// estilos: 1 encabezado, 2 error (rojo), 3 revisar (amarillo), 4 coordenada
+// estilos: 1 encabezado, 2 error (rojo), 3 revisar (amarillo), 4 coordenada, 5 segundo encabezado
 function toXLSX(f) {
-  const keys = includedKeys(), NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-  const widths = keys.map(k => cfg(k).name.length);
+  const widths = TEMPLATE.map(c => c.api.length);
   const str = (ref, v, s) => `<c r="${ref}" t="inlineStr"${s ? ` s="${s}"` : ''}><is><t xml:space="preserve">${xesc(v)}</t></is></c>`;
-  const rows = [`<row r="1">${keys.map((k, j) => str(colName(j) + 1, cfg(k).name, 1)).join('')}</row>`];
-  let r = 1;
-  f.results.forEach((res, i) => {
-    if (f.excluded.has(i)) return;
+  const rows = [
+    `<row r="1">${TEMPLATE.map((c, j) => str(colName(j) + 1, c.api, 1)).join('')}</row>`,
+    `<row r="2">${TEMPLATE.map((c, j) => str(colName(j) + 2, c.db, 5)).join('')}</row>`,
+  ];
+  let r = 2;
+  f.results.forEach(res => {
+    if (res.lvl === 'off') return;
     r++;
-    rows.push(`<row r="${r}">${keys.map((k, j) => {
-      const c = res.cells[k], ref = colName(j) + r;
+    rows.push(`<row r="${r}">${TEMPLATE.map((col, j) => {
+      const c = res.cells[col.api], ref = colName(j) + r;
       widths[j] = Math.max(widths[j], c.value.length);
       const s = c.level === 'err' ? 2 : c.level === 'warn' ? 3 : 0;
-      if (cfg(k).format === 'coord' && /^-?\d+(\.\d+)?$/.test(c.value)) return `<c r="${ref}" s="${s || 4}"><v>${c.value}</v></c>`;
+      if (f.srcs[col.api].format === 'coord' && /^-?\d+(\.\d+)?$/.test(c.value)) return `<c r="${ref}" s="${s || 4}"><v>${c.value}</v></c>`;
       return str(ref, c.value, s);
     }).join('')}</row>`);
   });
-  const last = colName(keys.length - 1) + r;
+  const lastCol = colName(TEMPLATE.length - 1);
   const cols = widths.map((w, j) => `<col min="${j + 1}" max="${j + 1}" width="${Math.min(Math.max(w + 2, 10), 60)}" customWidth="1"/>`).join('');
   const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="${NS}" xmlns:r="${R}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${cols}</cols><sheetData>${rows.join('')}</sheetData><autoFilter ref="A1:${last}"/></worksheet>`;
+<worksheet xmlns="${NS}" xmlns:r="${R}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${cols}</cols><sheetData>${rows.join('')}</sheetData><autoFilter ref="A2:${lastCol}${r}"/></worksheet>`;
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="${NS}"><numFmts count="1"><numFmt numFmtId="164" formatCode="0.000000"/></numFmts>
-<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><sz val="11"/><color rgb="FF9C0006"/><name val="Calibri"/></font></fonts>
-<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0D6B58"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFC7CE"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFEB9C"/><bgColor indexed="64"/></patternFill></fill></fills>
+<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><sz val="11"/><color rgb="FF9C0006"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF5A6963"/><name val="Calibri"/></font></fonts>
+<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0D6B58"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFC7CE"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFEB9C"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE2F1EC"/><bgColor indexed="64"/></patternFill></fill></fills>
 <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>
+<cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="3" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
   return zipFiles([
     { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -666,7 +844,7 @@ function toXLSX(f) {
     { name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
     { name: 'xl/workbook.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="${NS}" xmlns:r="${R}"><sheets><sheet name="Clientes" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Clientes!$A$1:$${colName(keys.length - 1)}$${r}</definedName></definedNames></workbook>` },
+<workbook xmlns="${NS}" xmlns:r="${R}"><sheets><sheet name="Clientes" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Clientes!$A$2:$${lastCol}$${r}</definedName></definedNames></workbook>` },
     { name: 'xl/_rels/workbook.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${R}/styles" Target="styles.xml"/></Relationships>` },
     { name: 'xl/worksheets/sheet1.xml', data: sheet },
@@ -674,10 +852,6 @@ function toXLSX(f) {
   ]);
 }
 function downloadXLSX(f) { saveBlob(toXLSX(f), baseName(f) + '.xlsx'); }
-function confirmErrors(files) {
-  const n = files.reduce((s, f) => s + f.stats.errRows, 0);
-  return !n || confirm(`Hay ${n} fila(s) con datos faltantes o inválidos (marcadas en rojo).\n¿Descargar de todas formas?`);
-}
 
 /* ---------- Eventos ---------- */
 $('#pick').onclick = () => $('#fileInput').click();
@@ -693,26 +867,30 @@ $('#files').onclick = e => {
   if (b.dataset.x) { state.files.splice(+b.dataset.x, 1); state.active = Math.max(0, Math.min(state.active, state.files.length - 1)); }
   state.filterCol = null; render();
 };
-$('#cols').addEventListener('change', e => {
+function onColChange(e) {
   const li = e.target.closest('.col'); if (!li) return;
-  const c = cfg(li.dataset.k), fld = e.target.dataset.f;
-  c[fld] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+  const c = colCfg(TEMPLATE.find(t => t.api === li.dataset.api)), fld = e.target.dataset.f;
+  if (fld === 'src') {
+    const [src, field] = e.target.value.split(/:(.*)/);
+    c.src = src; c.field = field || '';
+  } else c[fld] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
   save(); render();
-});
-$('#cols').addEventListener('click', e => {
-  const b = e.target.closest('[data-mv]'); if (!b) return;
-  const keys = visibleKeys(), k = b.closest('.col').dataset.k, i = keys.indexOf(k), j = i + +b.dataset.mv;
-  if (j < 0 || j >= keys.length) return;
-  const a = state.order.indexOf(k), z = state.order.indexOf(keys[j]);
-  [state.order[a], state.order[z]] = [state.order[z], state.order[a]];
-  save(); render();
-});
-$('#resetCols').onclick = () => { state.cols = {}; state.order = []; state.files.forEach(buildRows); save(); render(); };
+}
+$('#colsMain').addEventListener('change', onColChange);
+$('#colsFixed').addEventListener('change', onColChange);
+$('#resetCols').onclick = () => { state.tcfg = {}; save(); render(); };
+for (const id of ['codePrefix', 'codeStart', 'codeDigits']) {
+  $('#' + id).value = state[id];
+  $('#' + id).addEventListener('input', e => { state[id] = id === 'codePrefix' ? e.target.value : Number(e.target.value || 0); save(); render(); });
+}
+$('#fRuta').addEventListener('input', e => { activeFile().ruta = e.target.value.toUpperCase(); render(); });
+$('#fDia').onchange = e => { activeFile().dia = e.target.value; render(); };
 $('#chips').onclick = e => { const b = e.target.closest('[data-chip]'); if (!b) return; state.filterCol = state.filterCol === b.dataset.chip ? null : b.dataset.chip; render(); };
 $('#onlyIssues').onchange = e => { state.onlyIssues = e.target.checked; render(); };
+$('#showFixed').onchange = e => { state.showFixed = e.target.checked; save(); render(); };
 $('#splitName').onchange = e => { state.splitName = e.target.checked; state.files.forEach(buildRows); save(); render(); };
 $('#splitDesc').onchange = e => { state.splitDesc = e.target.checked; state.files.forEach(buildRows); save(); render(); };
-$('#sep').onchange = e => { state.sep = e.target.value; save(); };
+$('#fmt').onchange = e => { state.fmt = e.target.value; $('#download').textContent = state.fmt === 'tab' ? 'Descargar TXT' : 'Descargar CSV'; save(); };
 $('#bom').onchange = e => { state.bom = e.target.checked; save(); };
 $('#download').onclick = () => { const f = activeFile(); if (f && confirmErrors([f])) download(f); };
 $('#downloadXlsx').onclick = () => { const f = activeFile(); if (f) downloadXLSX(f); };
@@ -731,20 +909,23 @@ table.addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.dataset.cancel = '1'; e.target.blur(); }
 });
 table.addEventListener('focusout', e => {
-  const td = e.target; if (!td.matches('td.v')) return;
-  const f = activeFile(), i = +td.dataset.r, k = td.dataset.k;
+  const td = e.target; if (!td.matches('td.v') || !td.dataset.field) return;
+  const f = activeFile(), i = +td.dataset.r, k = td.dataset.field;
   if (td.dataset.cancel) { render(); return; }
-  const before = evalCell(f.rows[i][k] ?? '', cfg(k)).value, now = td.textContent.trim();
-  if (now === before) return;
+  const now = td.textContent.trim();
+  if (now === clean(f.rows[i][k] ?? '') || now === td.dataset.shown) return;
   (f.edits[i] ||= {})[k] = now;
   f.rows[i][k] = now;
   render();
 });
+table.addEventListener('focusin', e => { if (e.target.matches('td.v')) e.target.dataset.shown = e.target.textContent.trim(); });
 
 $('#splitName').checked = state.splitName;
 $('#splitDesc').checked = state.splitDesc;
-$('#sep').value = state.sep;
+$('#fmt').value = state.fmt;
+$('#download').textContent = state.fmt === 'tab' ? 'Descargar TXT' : 'Descargar CSV';
 $('#bom').checked = state.bom;
+$('#showFixed').checked = state.showFixed;
 render();
 </script>
 </body>
