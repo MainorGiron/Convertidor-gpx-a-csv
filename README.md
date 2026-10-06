@@ -6,7 +6,7 @@ Herramienta local para convertir archivos `.gpx` con datos de clientes al format
 
 1. Abre `convertidor-gpx-csv.html` con doble clic (Chrome o Edge).
 2. Carga uno o varios archivos `.gpx` (botón o arrastrar y soltar).
-3. Revisa **Ruta** y **Día de visita**: se toman del nombre del archivo (`1.- CD4R1 - LUNES ...gpx` → `CD4R1`, `LUNES`).
+3. Revisa **Ruta** y **Día de visita**: se toman del nombre del archivo (`1.- CD4R1 - LUNES ...gpx` → ruta `CD4R1`, día `1`).
 4. Corrige las celdas en rojo haciendo clic sobre ellas y usa **Excluir** en los puntos que no son clientes (por ejemplo `IMP 01`).
 5. **Descargar CSV**: archivo para importar, con las 22 columnas y los dos encabezados de la plantilla.
 6. **Descargar Excel (revisión)**: el mismo contenido en `.xlsx`, con filtros y los errores en rojo.
@@ -17,7 +17,7 @@ Todo se procesa en el navegador; no se envía ningún dato a internet.
 
 | Columna | Origen por defecto | Obligatoria |
 |---|---|---|
-| CardCode | Código automático (prefijo + número consecutivo) | Sí |
+| CardCode | Vacío: el código lo asigna SAP manualmente | No |
 | CardName | Negocio | Sí |
 | U_Ruta | Ruta del nombre del archivo | Sí |
 | U_Latitud / U_Longitud | Coordenadas del punto (6 decimales) | Sí |
@@ -26,7 +26,7 @@ Todo se procesa en el navegador; no se envía ningún dato a internet.
 | Notes | Propietario | Sí |
 | City | Municipio | Sí |
 | County | Departamento | Sí |
-| U_Dia_Visita | Día del nombre del archivo | Sí |
+| U_Dia_Visita | Día del nombre del archivo como número: 1 lunes, 2 martes, 3 miércoles, 4 jueves, 5 viernes, 6 sábado, 7 domingo | Sí |
 | CardType, GroupCode, PayTermsGrpCode, Country, DebitorAccount, Properties1, U_TaxCode | Valores fijos de la plantilla (`cCustomer`, `104`, `-1`, `HN`, `_SYS00000001984`, `tYES`, `EXE`) | — |
 | PriceListNum, SalesPersonCode, Territory, RTN | Vacíos; se llenan solos si el GPX trae ese dato | No |
 

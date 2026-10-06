@@ -81,8 +81,6 @@ header.top p { margin: 2px 0 0; color: var(--muted); }
 .opts { display: grid; gap: 8px; }
 .opts label { display: flex; gap: 8px; align-items: center; }
 .opts .row { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; }
-.code-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
-.code-row label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); }
 .note { font-size: 12px; color: var(--muted); margin: 0; }
 
 .filebar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 8px 10px; background: var(--bg); border-radius: 8px; }
@@ -164,14 +162,6 @@ tr.r-off .rowx { color: var(--accent); border-color: var(--accent); }
       <p class="note">De dónde sale cada columna de la plantilla. Las obligatorias se marcan en rojo cuando faltan.</p>
       <ul class="cols" id="colsMain"></ul>
 
-      <h2>Código de cliente (CardCode)</h2>
-      <div class="code-row">
-        <label>Prefijo<input class="field" type="text" id="codePrefix" maxlength="10"></label>
-        <label>Empieza en<input class="field" type="number" id="codeStart" min="0"></label>
-        <label>Dígitos<input class="field" type="number" id="codeDigits" min="0" max="12"></label>
-      </div>
-      <p class="note" id="codeNote"></p>
-
       <h2>Valores fijos para todos</h2>
       <ul class="cols fixed-list" id="colsFixed"></ul>
 
@@ -200,10 +190,11 @@ tr.r-off .rowx { color: var(--accent); border-color: var(--accent); }
         <label for="fDia">Día de visita
           <select class="field" id="fDia">
             <option value="">(sin día)</option>
-            <option>LUNES</option><option>MARTES</option><option>MIERCOLES</option><option>JUEVES</option>
-            <option>VIERNES</option><option>SABADO</option><option>DOMINGO</option>
+            <option value="LUNES">Lunes (1)</option><option value="MARTES">Martes (2)</option><option value="MIERCOLES">Miércoles (3)</option>
+            <option value="JUEVES">Jueves (4)</option><option value="VIERNES">Viernes (5)</option><option value="SABADO">Sábado (6)</option>
+            <option value="DOMINGO">Domingo (7)</option>
           </select></label>
-        <span class="note">Se toman del nombre del archivo; puedes cambiarlos.</span>
+        <span class="note">Se toman del nombre del archivo; puedes cambiarlos. En el CSV el día va como número.</span>
       </div>
       <div class="toolbar">
         <div class="summary" id="summary"></div>
@@ -507,7 +498,7 @@ function expand(rec) {
 // def: de dónde sale el dato por defecto. aliases: campos del GPX que se usan si vienen.
 const T = (api, db, label, def, extra = {}) => ({ api, db, label, def, ...extra });
 const TEMPLATE = [
-  T('CardCode', 'CardCode', 'Código del cliente', { src: 'auto', required: true }, { max: 15 }),
+  T('CardCode', 'CardCode', 'Código del cliente (lo asigna SAP)', { src: 'fixed', value: '' }, { max: 15 }),
   T('CardName', 'CardName', 'Nombre (negocio)', { src: 'field', field: 'negocio', format: 'mayus', required: true }, { max: 100 }),
   T('CardType', 'CardType', 'Tipo de socio', { src: 'fixed', value: 'cCustomer' }),
   T('GroupCode', 'GroupCode', 'Grupo de clientes', { src: 'fixed', value: '104' }, { max: 6 }),
@@ -524,28 +515,30 @@ const TEMPLATE = [
   T('County', 'County', 'Departamento', { src: 'field', field: 'departamento', format: 'mayus', required: true }, { max: 100 }),
   T('Country', 'Country', 'País', { src: 'fixed', value: 'HN' }, { max: 3 }),
   T('DebitorAccount', 'DebPayAcct', 'Cuenta por cobrar', { src: 'fixed', value: '_SYS00000001984' }, { max: 15 }),
-  T('U_Dia_Visita', 'U_Dia_Visita', 'Día de visita', { src: 'dia', format: 'mayus', required: true }),
+  T('U_Dia_Visita', 'U_Dia_Visita', 'Día de visita (1 lunes … 7 domingo)', { src: 'dia', format: 'texto', required: true }),
   T('Territory', 'Territory', 'Territorio', { src: 'fixed', value: '' }, { max: 11, aliases: ['territorio', 'territory'] }),
   T('Properties1', 'QryGroup1', 'Propiedad 1', { src: 'fixed', value: 'tYES' }),
   T('U_TaxCode', 'U_TaxCode', 'Código de impuesto', { src: 'fixed', value: 'EXE' }),
   T('RTN', 'RTN', 'RTN', { src: 'fixed', value: '', format: 'rtn' }, { aliases: ['rtn', 'r.t.n', 'r t n'] }),
 ];
-const SRC_LABELS = { auto: 'Código automático', ruta: 'Ruta del archivo', dia: 'Día de visita del archivo', fixed: 'Valor fijo' };
+const SRC_LABELS = { ruta: 'Ruta del archivo', dia: 'Día de visita del archivo (número)', fixed: 'Valor fijo' };
 const PER_CLIENT = c => c.src !== 'fixed';
 
 /* ---------- Estado ---------- */
 const STORE = 'gpx2csv.v2';
 const state = {
-  files: [], active: 0, tcfg: {}, codePrefix: '', codeStart: 1, codeDigits: 0,
+  files: [], active: 0, tcfg: {},
   splitName: true, splitDesc: true, fmt: ',', bom: true, showFixed: false, onlyIssues: false, filterCol: null,
 };
-const SAVED = ['tcfg', 'codePrefix', 'codeStart', 'codeDigits', 'splitName', 'splitDesc', 'fmt', 'bom', 'showFixed'];
+const SAVED = ['tcfg', 'splitName', 'splitDesc', 'fmt', 'bom', 'showFixed'];
 try {
   const s = JSON.parse(localStorage.getItem(STORE) || '{}');
   for (const k of SAVED) if (k in s) state[k] = s[k];
+  // versiones anteriores: CardCode automático y día en texto
+  if (!s.v3) { delete state.tcfg.CardCode; delete state.tcfg.U_Dia_Visita; }
 } catch {}
 function save() {
-  try { localStorage.setItem(STORE, JSON.stringify(Object.fromEntries(SAVED.map(k => [k, state[k]])))); } catch {}
+  try { localStorage.setItem(STORE, JSON.stringify({ v3: true, ...Object.fromEntries(SAVED.map(k => [k, state[k]])) })); } catch {}
 }
 const colCfg = col => state.tcfg[col.api] || (state.tcfg[col.api] = { src: 'fixed', field: '', value: '', format: 'texto', required: false, ...col.def });
 // Si un valor fijo está vacío y el GPX trae ese dato (ej. RTN), se usa el del GPX
@@ -579,14 +572,11 @@ const allKeys = () => {
   for (const f of state.files) for (const k of f.keys) if (!keys.includes(k)) keys.push(k);
   return keys;
 };
-const codeFor = n => state.codePrefix + String(Number(state.codeStart || 0) + n).padStart(Number(state.codeDigits || 0), '0');
-
-function rawValue(f, i, c, code) {
+function rawValue(f, i, c) {
   switch (c.src) {
     case 'field': return f.rows[i][c.field] ?? '';
-    case 'auto': return code;
     case 'ruta': return f.ruta;
-    case 'dia': return f.dia;
+    case 'dia': return f.dia ? String(DIAS.indexOf(f.dia) + 1) : ''; // LUNES → 1 … DOMINGO → 7
     default: return c.value;
   }
 }
@@ -598,15 +588,14 @@ function evalCol(raw, c, col) {
   return r;
 }
 
-function analyze(f, codeOffset) {
+function analyze(f) {
   const srcs = TEMPLATE.map(col => [col, source(col, f)]);
   const perCol = {};
-  let errRows = 0, warnRows = 0, n = 0;
+  let errRows = 0, warnRows = 0;
   f.results = f.rows.map((r, i) => {
     const off = f.excluded.has(i);
-    const code = off ? '' : codeFor(codeOffset + n++);
     const cells = {};
-    for (const [col, c] of srcs) cells[col.api] = evalCol(rawValue(f, i, c, code), c, col);
+    for (const [col, c] of srcs) cells[col.api] = evalCol(rawValue(f, i, c), c, col);
     if (off) {
       for (const k in cells) cells[k] = ok(cells[k].value);
       return { cells, lvl: 'off' };
@@ -627,13 +616,11 @@ function analyze(f, codeOffset) {
   });
   f.srcs = Object.fromEntries(srcs.map(([col, c]) => [col.api, c]));
   f.stats = { total: f.rows.length - f.excluded.size, excluded: f.excluded.size, errRows, warnRows, perCol };
-  return n;
 }
 
 /* ---------- Render ---------- */
 function render() {
-  let offset = 0;
-  for (const f of state.files) { f.codeOffset = offset; offset += analyze(f, offset); }
+  state.files.forEach(analyze);
   renderFiles(); renderCols(); renderFileBar(); renderSummary(); renderTable();
 }
 function renderFiles() {
@@ -659,7 +646,7 @@ function renderCols() {
     return `<li class="col" data-api="${col.api}">${head(col)}
       <div class="col-body">
         <select class="field" id="${id}-src" data-f="src" aria-label="Origen de ${col.api}">${srcOptions(c)}</select>
-        ${c.src === 'auto' ? '<span></span>' : `<select class="field" id="${id}-fmt" data-f="format" aria-label="Formato">${fmtOpts.replace(`value="${c.format}"`, `value="${c.format}" selected`)}</select>`}
+        <select class="field" id="${id}-fmt" data-f="format" aria-label="Formato">${fmtOpts.replace(`value="${c.format}"`, `value="${c.format}" selected`)}</select>
         <label class="${c.required ? 'req-on' : ''}"><input type="checkbox" id="${id}-req" data-f="required" ${c.required ? 'checked' : ''}> Obligatorio${col.max ? ` · máx. ${col.max} caracteres` : ''}</label>
       </div></li>`;
   }).join('');
@@ -670,11 +657,6 @@ function renderCols() {
       <select class="field" id="${id}-src" data-f="src" aria-label="Origen de ${col.api}" style="grid-column:1/-1">${srcOptions(c)}</select>
       ${det ? `<p class="hint">Este archivo trae el dato "${esc(source(col, f).field)}"; se usa en lugar del valor vacío.</p>` : ''}</li>`;
   }).join('');
-  const usesAuto = TEMPLATE.some(col => colCfg(col).src === 'auto');
-  const last = state.files.reduce((s, f) => s + f.stats.total, 0);
-  $('#codeNote').textContent = !usesAuto ? 'Ninguna columna usa el código automático.'
-    : last ? `Códigos asignados: ${codeFor(0)} a ${codeFor(last - 1)}. La próxima vez empieza en ${Number(state.codeStart || 0) + last} para no repetir.`
-    : `Ejemplo: ${codeFor(0)}, ${codeFor(1)}, ${codeFor(2)}…`;
 }
 function renderFileBar() {
   const f = activeFile();
@@ -879,10 +861,6 @@ function onColChange(e) {
 $('#colsMain').addEventListener('change', onColChange);
 $('#colsFixed').addEventListener('change', onColChange);
 $('#resetCols').onclick = () => { state.tcfg = {}; save(); render(); };
-for (const id of ['codePrefix', 'codeStart', 'codeDigits']) {
-  $('#' + id).value = state[id];
-  $('#' + id).addEventListener('input', e => { state[id] = id === 'codePrefix' ? e.target.value : Number(e.target.value || 0); save(); render(); });
-}
 $('#fRuta').addEventListener('input', e => { activeFile().ruta = e.target.value.toUpperCase(); render(); });
 $('#fDia').onchange = e => { activeFile().dia = e.target.value; render(); };
 $('#chips').onclick = e => { const b = e.target.closest('[data-chip]'); if (!b) return; state.filterCol = state.filterCol === b.dataset.chip ? null : b.dataset.chip; render(); };
