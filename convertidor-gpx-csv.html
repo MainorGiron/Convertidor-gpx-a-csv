@@ -107,6 +107,13 @@ td.v.err { background: var(--err-bg); color: var(--err); }
 td.v.warn { background: var(--warn-bg); color: var(--warn); }
 td.v.err:empty::before { content: "Falta dato"; font-family: var(--f-ui); font-style: italic; font-weight: 600; }
 td.v.edited { box-shadow: inset 0 -2px 0 var(--accent); }
+td.v.fixed { background: var(--accent-soft); }
+td.n { white-space: nowrap; }
+.rowx { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 5px; font-size: 11px; padding: 1px 6px; margin-left: 8px; }
+.rowx:hover { border-color: var(--err); color: var(--err); }
+tr.r-off td.v { opacity: 0.4; text-decoration: line-through; cursor: default; }
+tr.r-off td.v:hover { background: none; }
+tr.r-off .rowx { color: var(--accent); border-color: var(--accent); }
 td.v .msg { display: block; font-family: var(--f-ui); font-size: 11px; font-weight: 600; }
 .empty { padding: 40px; text-align: center; color: var(--muted); }
 .error-box { background: var(--err-bg); color: var(--err); border-radius: 8px; padding: 10px 14px; font-weight: 500; }
@@ -115,6 +122,7 @@ td.v .msg { display: block; font-family: var(--f-ui); font-size: 11px; font-weig
 .legend .l-err::before { background: var(--err); }
 .legend .l-warn::before { background: var(--warn); }
 .legend .l-ed::before { background: var(--accent); }
+.legend .l-fix::before { background: var(--accent-soft); border: 1px solid var(--accent); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -128,6 +136,7 @@ td.v .msg { display: block; font-family: var(--f-ui); font-size: 11px; font-weig
     <div class="legend">
       <span class="l-err">Falta dato o formato inválido</span>
       <span class="l-warn">Revisar</span>
+      <span class="l-fix">Corregido automáticamente</span>
       <span class="l-ed">Editado a mano</span>
     </div>
   </header>
@@ -147,6 +156,7 @@ td.v .msg { display: block; font-family: var(--f-ui); font-size: 11px; font-weig
       <ul class="cols" id="cols"></ul>
       <h2>Lectura del GPX</h2>
       <div class="opts">
+        <label><input type="checkbox" id="splitName"> Separar el nombre por "/" en negocio, propietario, teléfono, dirección, municipio y departamento</label>
         <label><input type="checkbox" id="splitDesc"> Separar la descripción en columnas (líneas tipo <code>Teléfono: 9800…</code>)</label>
       </div>
       <h2>Exportación</h2>
@@ -171,7 +181,7 @@ td.v .msg { display: block; font-family: var(--f-ui); font-size: 11px; font-weig
         <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="onlyIssues"> Mostrar solo filas con problemas</label>
       </div>
       <div class="tablebox"><table id="table"></table></div>
-      <p class="note">Haz clic en cualquier celda para corregirla. Al salir de la celda se aplica el formato automáticamente.</p>
+      <p class="note">Haz clic en cualquier celda para corregirla; al salir se aplica el formato. Usa <b>Excluir</b> para dejar fuera del CSV los puntos que no son clientes (por ejemplo "IMP 01"). Pasa el mouse sobre el número de fila para ver el texto original del GPX.</p>
     </section>
   </div>
 </div>
@@ -278,6 +288,7 @@ function parseGpx(text) {
     for (const ch of pt.children) {
       if (ch.localName === 'link') { put('link', ch.getAttribute('href') || ''); continue; }
       if (ch.children.length) { leaves(ch).forEach(l => put(l.localName, l.textContent.trim())); continue; }
+      if (ch.localName === 'extensions') continue; // <extensions> vacío
       put(ch.localName, ch.textContent.trim());
     }
     return rec;
@@ -306,11 +317,99 @@ function splitKV(text) {
   }
   return { pairs, rest: rest.join(' ') };
 }
+/* ---------- Nombre separado por "/" ---------- */
+const DEPTOS = ['ATLANTIDA', 'CHOLUTECA', 'COLON', 'COMAYAGUA', 'COPAN', 'CORTES', 'EL PARAISO', 'FRANCISCO MORAZAN',
+  'GRACIAS A DIOS', 'INTIBUCA', 'ISLAS DE LA BAHIA', 'LA PAZ', 'LEMPIRA', 'OCOTEPEQUE', 'OLANCHO', 'SANTA BARBARA', 'VALLE', 'YORO'];
+const FM = 'FRANCISCO MORAZAN';
+const MUNIS = {
+  'DISTRITO CENTRAL': FM, 'TEGUCIGALPA': FM, 'COMAYAGUELA': FM, 'VALLE DE ANGELES': FM, 'SANTA LUCIA': FM, 'OJOJONA': FM,
+  'TALANGA': FM, 'SABANAGRANDE': FM, 'SANTA ANA': FM, 'SAN ANTONIO DE ORIENTE': FM, 'TATUMBLA': FM, 'VILLA DE SAN FRANCISCO': FM,
+  'CEDROS': FM, 'GUAIMACA': FM, 'LEPATERIQUE': FM, 'MARAITA': FM, 'NUEVA ARMENIA': FM, 'EL PORVENIR': FM, 'CANTARRANAS': FM,
+  'SAN PEDRO SULA': 'CORTES', 'CHOLOMA': 'CORTES', 'VILLANUEVA': 'CORTES', 'LA LIMA': 'CORTES', 'PUERTO CORTES': 'CORTES', 'OMOA': 'CORTES',
+  'LA CEIBA': 'ATLANTIDA', 'TELA': 'ATLANTIDA', 'SIGUATEPEQUE': 'COMAYAGUA', 'DANLI': 'EL PARAISO', 'JUTICALPA': 'OLANCHO',
+  'CATACAMAS': 'OLANCHO', 'SANTA ROSA DE COPAN': 'COPAN', 'EL PROGRESO': 'YORO', 'OLANCHITO': 'YORO',
+};
+const MUNI_LIST = Object.keys(MUNIS);
+const catKey = s => norm(s).toUpperCase().replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim()
+  .replace(/^(DEPARTAMENTO|DEPTO|DPTO|MUNICIPIO|MUN)( DE)? /, '');
+function lev(a, b) {
+  const d = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = d[0]; d[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const t = d[j];
+      d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = t;
+    }
+  }
+  return d[b.length];
+}
+// Busca el nombre en el catálogo tolerando errores de escritura ("DIATRITO CENTRAL")
+function matchCat(s, list) {
+  const raw = clean(s), n = catKey(raw);
+  if (!n) return null;
+  let best = null, bd = 99;
+  for (const c of list) { const d = n === c ? 0 : lev(n, c); if (d < bd) { bd = d; best = c; } }
+  if (bd > (n.length >= 8 ? 2 : 1)) return null;
+  const same = norm(raw).toUpperCase() === best;
+  return { value: same ? raw.toUpperCase() : best, fixed: !same };
+}
+const PHONE_RE = /((?:\+?50[2-7][\s-]?)?\d{4}[\s-]?\d{4})(?!\d)/;
+function isPhone(p) {
+  const d = p.replace(/\D/g, '');
+  return /^[+()\d\s.-]+$/.test(p) && (d.length === 8 || (d.length === 11 && /^50[2-7]/.test(d)));
+}
+const SPLIT_KEYS = ['negocio', 'propietario', 'telefono', 'direccion', 'municipio', 'departamento'];
+function splitName(text) {
+  let parts = text.split('/').map(clean).filter(Boolean);
+  const out = Object.fromEntries(SPLIT_KEYS.map(k => [k, ''])), fix = {};
+  if (parts.length < 2) { out.negocio = parts[0] || ''; return { out, fix }; }
+  let pi = parts.findIndex((p, i) => i > 0 && isPhone(p));
+  if (pi === -1) { // número pegado a otro texto: "MARCIA FLORES 97766975"
+    const i = parts.findIndex((p, i) => i > 0 && PHONE_RE.test(p));
+    if (i > 0) {
+      const m = parts[i].match(PHONE_RE);
+      const before = clean(parts[i].slice(0, m.index)), after = clean(parts[i].slice(m.index + m[0].length));
+      parts.splice(i, 1, ...[before, m[1], after].filter(Boolean));
+      pi = parts.indexOf(m[1]);
+      fix.telefono = 'Separado automáticamente: venía sin "/"';
+    }
+  }
+  let left, right; const phones = [];
+  if (pi > 0) {
+    let j = pi;
+    while (j < parts.length && isPhone(parts[j])) phones.push(parts[j++]);
+    left = parts.slice(0, pi); right = parts.slice(j);
+  } else { left = parts.slice(0, 2); right = parts.slice(2); }
+  out.negocio = left[0] || '';
+  out.propietario = left.slice(1).join(' / ');
+  out.telefono = phones.join(' / ');
+  if (right.length) {
+    const d = matchCat(right.at(-1), DEPTOS);
+    if (d) { if (d.fixed) fix.departamento = `Corregido automáticamente (decía "${right.at(-1)}")`; out.departamento = d.value; right.pop(); }
+  }
+  if (right.length) {
+    const last = right.at(-1), m = matchCat(last, MUNI_LIST);
+    if (m) { if (m.fixed) fix.municipio = `Corregido automáticamente (decía "${last}")`; out.municipio = m.value; right.pop(); }
+    else if (out.departamento && right.length > 1) { out.municipio = last; right.pop(); }
+  }
+  if (!out.departamento && out.municipio) {
+    const dep = MUNIS[catKey(out.municipio)];
+    if (dep) { out.departamento = dep; fix.departamento = 'Completado según el municipio'; }
+  }
+  out.direccion = right.join(' / ');
+  return { out, fix };
+}
+
 function expand(rec) {
-  if (!state.splitDesc) return { ...rec };
-  const out = {};
+  let out = {}, fix = {}, orig = null;
+  if (state.splitName && 'name' in rec) {
+    ({ out, fix } = splitName(rec.name)); // sin "/" (ej. "IMP 01") queda solo como negocio
+    orig = rec.name;
+  }
   for (const [k, v] of Object.entries(rec)) {
-    if ((k === 'desc' || k === 'cmt') && v) {
+    if (orig !== null && k === 'name') continue;
+    if (state.splitDesc && (k === 'desc' || k === 'cmt') && v) {
       const { pairs, rest } = splitKV(v);
       if (pairs.length) {
         if (rest) out[k] = rest;
@@ -320,27 +419,26 @@ function expand(rec) {
     }
     if (!(k in out)) out[k] = v;
   }
-  return out;
+  return { row: out, meta: { fix, orig } };
 }
 
 /* ---------- Estado ---------- */
 const STORE = 'gpx2csv.v1';
-const state = { files: [], active: 0, cols: {}, order: [], splitDesc: true, sep: ',', bom: true, onlyIssues: false, filterCol: null };
+const state = { files: [], active: 0, cols: {}, order: [], splitName: true, splitDesc: true, sep: ',', bom: true, onlyIssues: false, filterCol: null };
 try {
   const s = JSON.parse(localStorage.getItem(STORE) || '{}');
   Object.assign(state, { cols: s.cols || {}, order: s.order || [] });
-  if ('splitDesc' in s) state.splitDesc = s.splitDesc;
-  if ('sep' in s) state.sep = s.sep;
-  if ('bom' in s) state.bom = s.bom;
+  for (const k of ['splitName', 'splitDesc', 'sep', 'bom']) if (k in s) state[k] = s[k];
 } catch {}
 function save() {
-  try { localStorage.setItem(STORE, JSON.stringify({ cols: state.cols, order: state.order, splitDesc: state.splitDesc, sep: state.sep, bom: state.bom })); } catch {}
+  try { localStorage.setItem(STORE, JSON.stringify({ cols: state.cols, order: state.order, splitName: state.splitName, splitDesc: state.splitDesc, sep: state.sep, bom: state.bom })); } catch {}
 }
-const DEFAULT_NAMES = { name: 'nombre', desc: 'descripcion', cmt: 'comentario', lat: 'latitud', lon: 'longitud' };
+const DEFAULT_NAMES = { name: 'nombre', desc: 'descripcion', cmt: 'comentario', lat: 'latitud', lon: 'longitud', time: 'fecha' };
 function guess(key) {
   const n = norm(key);
   const c = { include: true, name: DEFAULT_NAMES[key] || key, format: 'texto', required: false };
-  if (['lat', 'lon', 'latitud', 'longitud', 'latitude', 'longitude'].includes(n)) { c.format = 'coord'; c.required = true; }
+  if (SPLIT_KEYS.includes(key)) { c.required = true; c.format = key === 'telefono' ? 'telefono' : 'mayus'; }
+  else if (['lat', 'lon', 'latitud', 'longitud', 'latitude', 'longitude'].includes(n)) { c.format = 'coord'; c.required = true; }
   else if (/tel|cel|phone|movil|whats/.test(n)) { c.format = 'telefono'; c.required = true; }
   else if (n === 'name' || /nombre|cliente/.test(n)) c.required = true;
   else if (/direcc|address|domicilio/.test(n)) c.required = true;
@@ -352,10 +450,17 @@ function guess(key) {
 const cfg = k => state.cols[k] || (state.cols[k] = guess(k));
 
 function buildRows(f) {
-  f.rows = f.raw.map((r, i) => ({ ...expand(r), ...(f.edits[i] || {}) }));
+  f.rows = []; f.meta = [];
+  f.raw.forEach((r, i) => { const { row, meta } = expand(r); f.rows.push({ ...row, ...(f.edits[i] || {}) }); f.meta.push(meta); });
   f.keys = [];
   for (const r of f.rows) for (const k of Object.keys(r)) if (!f.keys.includes(k)) f.keys.push(k);
-  for (const k of f.keys) { cfg(k); if (!state.order.includes(k)) state.order.push(k); }
+  // las columnas nuevas se insertan junto a sus vecinas, no al final
+  f.keys.forEach((k, idx) => {
+    cfg(k);
+    if (state.order.includes(k)) return;
+    const next = f.keys.slice(idx + 1).find(n => state.order.includes(n));
+    state.order.splice(next ? state.order.indexOf(next) : state.order.length, 0, k);
+  });
 }
 const activeFile = () => state.files[state.active];
 const visibleKeys = () => { const present = new Set(state.files.flatMap(f => f.keys)); return state.order.filter(k => present.has(k)); };
@@ -365,8 +470,12 @@ function analyze(f) {
   const keys = includedKeys();
   const perCol = {};
   let errRows = 0, warnRows = 0;
-  f.results = f.rows.map(r => {
+  f.results = f.rows.map((r, i) => {
     const cells = {}; let lvl = 'ok';
+    if (f.excluded.has(i)) {
+      for (const k of keys) cells[k] = ok(evalCell(r[k] ?? '', cfg(k)).value);
+      return { cells, lvl: 'off' };
+    }
     for (const k of keys) {
       const res = evalCell(r[k] ?? '', cfg(k));
       cells[k] = res;
@@ -378,7 +487,7 @@ function analyze(f) {
     if (lvl === 'err') errRows++; else if (lvl === 'warn') warnRows++;
     return { cells, lvl };
   });
-  f.stats = { total: f.rows.length, errRows, warnRows, perCol };
+  f.stats = { total: f.rows.length - f.excluded.size, excluded: f.excluded.size, errRows, warnRows, perCol };
 }
 
 /* ---------- Render ---------- */
@@ -421,7 +530,8 @@ function renderSummary() {
     <span class="stat"><b>${s.total}</b>clientes</span>
     <span class="stat o"><b>${okRows}</b>completos</span>
     <span class="stat e"><b>${s.errRows}</b>con errores</span>
-    ${s.warnRows ? `<span class="stat w"><b>${s.warnRows}</b>por revisar</span>` : ''}`;
+    ${s.warnRows ? `<span class="stat w"><b>${s.warnRows}</b>por revisar</span>` : ''}
+    ${s.excluded ? `<span class="stat"><b>${s.excluded}</b>excluidos</span>` : ''}`;
   $('#chips').innerHTML = Object.entries(s.perCol).map(([k, c]) => {
     const n = c.err || c.warn;
     return `<button class="chip ${c.err ? '' : 'warn'} ${state.filterCol === k ? 'on' : ''}" data-chip="${esc(k)}">${esc(cfg(k).name)}: ${n} ${c.err ? 'con problema' : 'por revisar'}</button>`;
@@ -434,13 +544,17 @@ function renderTable() {
   let html = `<thead><tr><th>#</th>${keys.map(k => `<th>${esc(cfg(k).name)}${cfg(k).required ? ' <span class="req" title="Obligatorio">*</span>' : ''}</th>`).join('')}</tr></thead><tbody>`;
   let shown = 0;
   f.results.forEach((res, i) => {
-    if (state.onlyIssues && res.lvl === 'ok') return;
+    if (state.onlyIssues && (res.lvl === 'ok' || res.lvl === 'off')) return;
     if (state.filterCol && (!res.cells[state.filterCol] || res.cells[state.filterCol].level === 'ok')) return;
     shown++;
-    html += `<tr class="r-${res.lvl}"><td class="n">${i + 1}</td>${keys.map(k => {
+    const off = res.lvl === 'off', meta = f.meta[i];
+    const orig = meta.orig ? ` title="Texto original: ${esc(clean(meta.orig))}"` : '';
+    html += `<tr class="r-${res.lvl}"><td class="n"${orig}>${i + 1}<button class="rowx" data-ex="${i}">${off ? 'Incluir' : 'Excluir'}</button></td>${keys.map(k => {
       const c = res.cells[k], edited = f.edits[i] && k in f.edits[i];
-      const cls = ['v', c.level !== 'ok' ? c.level : '', edited ? 'edited' : ''].join(' ');
-      return `<td class="${cls}" contenteditable="true" spellcheck="false" data-r="${i}" data-k="${esc(k)}"${c.msg ? ` title="${esc(c.msg)}"` : ''}>${esc(c.value)}</td>`;
+      const fixed = !edited && c.level === 'ok' && meta.fix[k];
+      const msg = c.msg || fixed || '';
+      const cls = ['v', c.level !== 'ok' ? c.level : '', edited ? 'edited' : '', fixed ? 'fixed' : ''].join(' ');
+      return `<td class="${cls}" contenteditable="${off ? 'false' : 'true'}" spellcheck="false" data-r="${i}" data-k="${esc(k)}"${msg ? ` title="${esc(msg)}"` : ''}>${esc(c.value)}</td>`;
     }).join('')}</tr>`;
   });
   if (!shown) html += `<tr><td class="empty" colspan="${keys.length + 1}">No hay filas con problemas. El archivo está listo.</td></tr>`;
@@ -453,7 +567,7 @@ async function addFiles(list) {
   for (const file of list) {
     try {
       const raw = parseGpx(decodeBuffer(await file.arrayBuffer()));
-      const f = { name: file.name, raw, edits: {} };
+      const f = { name: file.name, raw, edits: {}, excluded: new Set() };
       buildRows(f); state.files.push(f); state.active = state.files.length - 1;
     } catch (e) { errors.push(`${file.name}: ${e.message}`); }
   }
@@ -465,7 +579,7 @@ function toCSV(f) {
   const keys = includedKeys(), sep = state.sep;
   const q = v => /["\r\n]/.test(v) || v.includes(sep) ? '"' + v.replace(/"/g, '""') + '"' : v;
   const lines = [keys.map(k => q(cfg(k).name)).join(sep)];
-  f.rows.forEach(r => lines.push(keys.map(k => q(evalCell(r[k] ?? '', cfg(k)).value)).join(sep)));
+  f.rows.forEach((r, i) => !f.excluded.has(i) && lines.push(keys.map(k => q(evalCell(r[k] ?? '', cfg(k)).value)).join(sep)));
   return (state.bom ? '﻿' : '') + lines.join('\r\n') + '\r\n';
 }
 function download(f) {
@@ -512,6 +626,7 @@ $('#cols').addEventListener('click', e => {
 $('#resetCols').onclick = () => { state.cols = {}; state.order = []; state.files.forEach(buildRows); save(); render(); };
 $('#chips').onclick = e => { const b = e.target.closest('[data-chip]'); if (!b) return; state.filterCol = state.filterCol === b.dataset.chip ? null : b.dataset.chip; render(); };
 $('#onlyIssues').onchange = e => { state.onlyIssues = e.target.checked; render(); };
+$('#splitName').onchange = e => { state.splitName = e.target.checked; state.files.forEach(buildRows); save(); render(); };
 $('#splitDesc').onchange = e => { state.splitDesc = e.target.checked; state.files.forEach(buildRows); save(); render(); };
 $('#sep').onchange = e => { state.sep = e.target.value; save(); };
 $('#bom').onchange = e => { state.bom = e.target.checked; save(); };
@@ -519,6 +634,12 @@ $('#download').onclick = () => { const f = activeFile(); if (f && confirmErrors(
 $('#downloadAll').onclick = () => { if (confirmErrors(state.files)) state.files.forEach((f, i) => setTimeout(() => download(f), i * 400)); };
 
 const table = $('#table');
+table.addEventListener('click', e => {
+  const b = e.target.closest('[data-ex]'); if (!b) return;
+  const ex = activeFile().excluded, i = +b.dataset.ex;
+  ex.has(i) ? ex.delete(i) : ex.add(i);
+  render();
+});
 table.addEventListener('keydown', e => {
   if (!e.target.matches('td.v')) return;
   if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
@@ -535,6 +656,7 @@ table.addEventListener('focusout', e => {
   render();
 });
 
+$('#splitName').checked = state.splitName;
 $('#splitDesc').checked = state.splitDesc;
 $('#sep').value = state.sep;
 $('#bom').checked = state.bom;
