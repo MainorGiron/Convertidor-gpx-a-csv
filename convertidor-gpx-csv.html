@@ -445,7 +445,21 @@ function placeCheck(muni, dep) {
 }
 
 /* ---------- Nombre separado por "/" ---------- */
-const PHONE_RE = /((?:\+?50[2-7][\s-]?)?\d{4}[\s-]?\d{4})(?!\d)/;
+const PHONE_RE = /(?<!\d)((?:\+?50[2-7][\s-]?)?\d{4}[\s-]?\d{4})(?!\d)/;
+// "RTN03018010326279", "RTN: 0301-8010-326279" o 14 dígitos sueltos
+const RTN_RE = /\bR\.?\s*T\.?\s*N\.?\s*[:#.-]?\s*(\d[\d\s-]{12,}\d)/i;
+function takeRtn(parts) {
+  for (let i = parts.length - 1; i > 0; i--) {
+    const m = parts[i].match(RTN_RE);
+    const bare = !m && /^\d{14}$/.test(parts[i].replace(/[\s-]/g, ''));
+    if (!m && !bare) continue;
+    const rtn = (m ? m[1] : parts[i]).replace(/\D/g, '');
+    const rest = m ? clean(parts[i].replace(m[0], '')) : '';
+    rest ? (parts[i] = rest) : parts.splice(i, 1);
+    return rtn;
+  }
+  return '';
+}
 function isPhone(p) {
   const d = p.replace(/\D/g, '');
   return /^[+()\d\s.-]+$/.test(p) && (d.length === 8 || (d.length === 11 && /^50[2-7]/.test(d)));
@@ -454,6 +468,8 @@ const SPLIT_KEYS = ['negocio', 'propietario', 'telefono', 'direccion', 'municipi
 function splitName(text) {
   let parts = String(text).split('/').map(clean).filter(Boolean);
   const out = Object.fromEntries(SPLIT_KEYS.map(k => [k, ''])), fix = {};
+  const rtn = takeRtn(parts); // el RTN es opcional: se saca antes de ubicar los demás datos
+  if (rtn) out.rtn = rtn;
   if (parts.length < 2) { out.negocio = parts[0] || ''; return { out, fix }; }
   let pi = parts.findIndex((p, i) => i > 0 && isPhone(p));
   if (pi === -1) { // número pegado a otro texto: "MARCIA FLORES 97766975"
@@ -573,10 +589,13 @@ function source(col, f) {
 
 const DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'];
 // "1.- CD4R1 - LUNES   RECIBIDO 5-10-2026.gpx" → ruta CD4R1, día LUNES
+// "3.- RUTA 29 - MARTES RECIBIDO.gpx"            → ruta RUTA 29, día MARTES
 function fileInfo(name) {
-  const base = name.replace(/\.gpx$/i, '');
-  const ruta = (base.match(/\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{3,}\b/i) || [''])[0].toUpperCase();
-  const dia = DIAS.find(d => new RegExp(`\\b${d}\\b`).test(norm(base).toUpperCase())) || '';
+  const base = name.replace(/\.gpx$/i, ''), up = norm(base).toUpperCase();
+  const r = up.match(/\bRUTA\s*[-#:.]?\s*([A-Z0-9]+)\b/);
+  const ruta = r && !DIAS.includes(r[1]) && r[1] !== 'RECIBIDO' ? `RUTA ${r[1]}`
+    : (up.match(/\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{3,}\b/) || [''])[0];
+  const dia = DIAS.find(d => new RegExp(`\\b${d}\\b`).test(up)) || '';
   return { ruta, dia };
 }
 
