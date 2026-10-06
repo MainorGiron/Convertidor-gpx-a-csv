@@ -7,9 +7,13 @@ Herramienta local para convertir archivos `.gpx` con datos de clientes al format
 1. Abre `convertidor-gpx-csv.html` con doble clic (Chrome o Edge).
 2. Carga uno o varios archivos `.gpx` (botón o arrastrar y soltar).
 3. Revisa **Ruta** y **Día de visita**: se toman del nombre del archivo (`1.- CD4R1 - LUNES ...gpx` → ruta `CD4R1`, día `1`; `3.- RUTA 29 - MARTES ...gpx` → ruta `RUTA 29`, día `2`).
-4. Corrige las celdas en rojo haciendo clic sobre ellas y usa **Excluir** en los puntos que no son clientes (por ejemplo `IMP 01`).
-5. **Descargar CSV**: archivo para importar, con las 22 columnas y los dos encabezados de la plantilla.
-6. **Descargar Excel (revisión)**: el mismo contenido en `.xlsx`, con filtros y los errores en rojo.
+4. Elige la **Lista de precios** del archivo y confirma el **Vendedor** (sale solo según la ruta).
+5. Corrige las celdas en rojo haciendo clic sobre ellas y usa **Excluir** en los puntos que no son clientes (por ejemplo `IMP 01`).
+   - Para mover un dato a otra columna, **arrastra la celda** sobre otra de la misma fila: los valores se intercambian.
+   - Si negocio y propietario vienen invertidos, la fila sale en amarillo con el botón **⇄** para intercambiarlos.
+   - **↶ Deshacer** revierte la última corrección o intercambio.
+6. **Descargar CSV**: archivo para importar, con las 22 columnas y los dos encabezados de la plantilla.
+7. **Descargar Excel (revisión)**: el mismo contenido en `.xlsx`, con filtros y los errores en rojo.
 
 Todo se procesa en el navegador; no se envía ningún dato a internet.
 
@@ -28,9 +32,12 @@ Todo se procesa en el navegador; no se envía ningún dato a internet.
 | County | Departamento | Sí |
 | U_Dia_Visita | Día del nombre del archivo como número: 1 lunes, 2 martes, 3 miércoles, 4 jueves, 5 viernes, 6 sábado, 7 domingo | Sí |
 | CardType, GroupCode, PayTermsGrpCode, Country, DebitorAccount, Properties1, U_TaxCode | Valores fijos de la plantilla (`cCustomer`, `104`, `-1`, `HN`, `_SYS00000001984`, `tYES`, `EXE`) | — |
-| PriceListNum, SalesPersonCode, Territory, RTN | Vacíos; se llenan solos si el GPX trae ese dato | No |
+| PriceListNum | Lista de precios elegida para el archivo (4 Ruteo, 5 Ruteo Especial, 1 Contado, 3 Crédito, 6 Depósito El Progreso, 7 Food Service, 17 Ruteo La Ceiba, 18 Ruteo Litoral) | Sí |
+| SalesPersonCode | Vendedor según la ruta (catálogo R01–R35 y CD1-R1–CD1-R5); si la ruta no está, se escribe a mano | No (amarillo si falta) |
+| Territory | Según el departamento (Francisco Morazán 18, Comayagua 15, Cortés 5, …) | No |
+| RTN | Vacío; se llena solo si el GPX trae RTN | No |
 
-Todo se puede cambiar en el panel izquierdo y la configuración se recuerda.
+Los catálogos vienen de `INFORMACION PARA CREAR CLIENTES.xlsx`. Todo se puede cambiar en **Configuración de la plantilla** y la configuración se recuerda.
 
 ## Validaciones
 

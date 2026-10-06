@@ -134,6 +134,13 @@ td.v.fixed { background: var(--fix-bg); }
 .rowx:hover { border-color: var(--err); color: var(--err); }
 tr.r-off td.v { opacity: 0.4; text-decoration: line-through; }
 tr.r-off .rowx { color: var(--accent); border-color: var(--accent); }
+.rowx.swap { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); font-weight: 700; }
+td.v.dragging { opacity: 0.4; }
+td.v.drop-target { outline: 2px dashed var(--ink); outline-offset: -3px; }
+.slp-name { font-size: 12px; color: var(--muted); }
+.slp-name.warn { color: var(--warn); font-weight: 600; }
+.field.bad { border-color: var(--err); color: var(--err); }
+#undoBtn:disabled { opacity: 0.45; cursor: default; }
 .empty { padding: 40px; text-align: center; color: var(--muted); }
 .error-box { background: var(--err-bg); color: var(--err); border-radius: 8px; padding: 10px 14px; font-weight: 500; }
 .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
@@ -215,7 +222,9 @@ tr.r-off .rowx { color: var(--accent); border-color: var(--accent); }
             <option value="JUEVES">Jueves (4)</option><option value="VIERNES">Viernes (5)</option><option value="SABADO">Sábado (6)</option>
             <option value="DOMINGO">Domingo (7)</option>
           </select></label>
-        <span class="note">Se toman del nombre del archivo; puedes cambiarlos. En el CSV el día va como número.</span>
+        <label for="fLista">Lista de precios <select class="field" id="fLista"></select></label>
+        <label for="fSlp">Vendedor <input class="field" type="text" id="fSlp" inputmode="numeric" style="min-width:64px;width:72px"></label>
+        <span class="slp-name" id="fSlpName"></span>
       </div>
       <div class="toolbar">
         <div class="summary" id="summary"></div>
@@ -230,6 +239,7 @@ tr.r-off .rowx { color: var(--accent); border-color: var(--accent); }
         <div class="checks">
           <label><input type="checkbox" id="showFixed"> Mostrar columnas con valor fijo</label>
           <label><input type="checkbox" id="onlyIssues"> Solo filas con problemas</label>
+          <button class="btn small" id="undoBtn" disabled title="Deshace la última corrección o intercambio">↶ Deshacer</button>
         </div>
       </div>
       <div class="tablebox"><table id="table"></table></div>
@@ -559,6 +569,40 @@ function expand(rec) {
   return { row: out, meta: { fix, orig } };
 }
 
+/* ---------- Catálogos de la empresa (INFORMACION PARA CREAR CLIENTES.xlsx) ---------- */
+const PRICE_LISTS = [['4', 'Ruteo'], ['5', 'Ruteo Especial'], ['1', 'Contado'], ['3', 'Crédito'],
+  ['6', 'Depósito El Progreso'], ['7', 'Food Service'], ['17', 'Ruteo La Ceiba'], ['18', 'Ruteo Litoral']];
+// ruta → [SlpCode, empleado]
+const ROUTE_SLP = {
+  R01: [11, 'Wilmer Geovani Almendarez Vasquez'], R02: [39, 'Omar Perdomo'], R03: [69, 'Marcos Cerrato'], R04: [14, 'Julio Banegas'],
+  R05: [51, 'Javier Castro'], R06: [31, 'Marvin España Blanco'], R07: [17, 'Daniel Enamorado Cardenas'], R08: [60, 'Javier Corea'],
+  R09: [19, 'Carlos Alberto Sandoval Andino'], R10: [20, 'Elmer Antonio Macedo'], R11: [21, 'Jose Luis Alvarez'], R12: [22, 'Douglas Santos'],
+  R13: [74, 'Heber Samuel'], R14: [24, 'Jesús Alberto Muñoz Osorio'], R15: [86, 'Israel Garcia'], R16: [61, 'Dagoberto Rivas'],
+  R17: [88, 'Jhony Almendarez Licona'], R18: [42, 'Orlin Banegas'], R19: [84, 'Jorge Luis Noriega'], R20: [50, 'Jose Daniel Castro'],
+  R21: [44, 'Juan Carlos Cruz'], R22: [57, 'Carlos Gustavo Carias'], R23: [68, 'Leonardo Alberto'], R24: [33, 'Javier Antonio Garcia Moreno'],
+  R25: [78, 'Luciano Jimenez'], R26: [32, 'Oscar Efrain Bonilla'], R27: [47, 'Orlando Nuñez'], R28: [48, 'Samuel Vallecillo'],
+  R29: [52, 'Abel Lanza Gonzales'], R30: [67, 'Selvin Espinal'], R31: [76, 'Edil Lopez'], R32: [64, ''],
+  R33: [65, 'Alfredo Zapata'], R34: [87, 'Porfirio Turcios'], R35: [72, 'Gerardo Mejia'],
+  CD1R1: [89, 'Mabel Donaldo'], CD1R2: [97, 'Owel Romero'], CD1R3: [91, 'José Gutierrez'], CD1R4: [92, 'Luis Montoya'], CD1R5: [96, ''],
+};
+// "RUTA 29" → R29, "R-5" → R05, "CD1-R1" → CD1R1
+function routeKey(ruta) {
+  const k = norm(ruta).toUpperCase().replace(/[\s-]/g, '');
+  const n = k.match(/^(?:RUTA|R)0*(\d+)$/);
+  return n ? 'R' + n[1].padStart(2, '0') : k;
+}
+const slpFor = ruta => (ROUTE_SLP[routeKey(ruta)] || [''])[0].toString();
+const TERRITORY = {
+  'OCOTEPEQUE': 1, 'COPAN': 2, 'LEMPIRA': 3, 'CORTES': 5, 'SANTA BARBARA': 6, 'YORO': 7, 'ATLANTIDA': 9, 'COLON': 10,
+  'GRACIAS A DIOS': 11, 'ISLAS DE LA BAHIA': 12, 'INTIBUCA': 14, 'COMAYAGUA': 15, 'LA PAZ': 16, 'FRANCISCO MORAZAN': 18,
+  'EL PARAISO': 19, 'OLANCHO': 20, 'CHOLUTECA': 22, 'VALLE': 23,
+};
+const territoryFor = dep => { const k = catKey(dep); return String(TERRITORY[k] ?? TERRITORY[DEPTO_ALIAS[k]] ?? ''); };
+
+// Palabras que delatan un negocio: si están en el propietario y no en el negocio, probablemente vienen invertidos
+const BIZ_RE = /\b(PULPERIA|PULP|PUL|TIENDA|MERCADITO|MERCADO|MINI ?SUPER|SUPERMERCADO|ABARROTERIA|ABARROTES|GOLOSINAS|RESTAURANTE|COMEDOR|CAFETERIA|VARIEDADES|BODEGA|DEPOSITO|COMERCIAL|FARMACIA|FERRETERIA|TORTILLERIA|PANADERIA|CARNICERIA|POLLERIA|BALEADAS|DISTRIBUIDORA|INVERSIONES|LIBRERIA|BOUTIQUE|PRODUCTOS|MINI ?MARKET|MARKET|BAR|CANTINA|ESTETICA|TALLER)\b/;
+const isBiz = s => BIZ_RE.test(norm(s).toUpperCase());
+
 /* ---------- Plantilla SAP (socios de negocio) ---------- */
 // def: de dónde sale el dato por defecto. aliases: campos del GPX que se usan si vienen.
 const T = (api, db, label, def, extra = {}) => ({ api, db, label, def, ...extra });
@@ -574,19 +618,22 @@ const TEMPLATE = [
   T('Phone1', 'Phone1', 'Teléfono', { src: 'field', field: 'telefono', format: 'telefono', required: true }, { max: 20 }),
   T('Notes', 'Notes', 'Comentarios (propietario)', { src: 'field', field: 'propietario', format: 'mayus', required: true }, { max: 100 }),
   T('PayTermsGrpCode', 'GroupNum', 'Condición de pago', { src: 'fixed', value: '-1' }, { max: 6 }),
-  T('PriceListNum', 'ListNum', 'Lista de precios', { src: 'fixed', value: '' }, { max: 6, aliases: ['lista de precios', 'lista precios', 'pricelistnum', 'listnum'] }),
-  T('SalesPersonCode', 'SlpCode', 'Código de vendedor', { src: 'fixed', value: '' }, { max: 11, aliases: ['vendedor', 'codigo vendedor', 'salespersoncode', 'slpcode'] }),
+  T('PriceListNum', 'ListNum', 'Lista de precios', { src: 'lista', required: true }, { max: 6 }),
+  T('SalesPersonCode', 'SlpCode', 'Código de vendedor', { src: 'vendedor' }, { max: 11, warnEmpty: 'La ruta no está en el catálogo de vendedores: escribe el código en "Vendedor", arriba de la tabla' }),
   T('City', 'City', 'Municipio', { src: 'field', field: 'municipio', format: 'mayus', required: true }, { max: 100 }),
   T('County', 'County', 'Departamento', { src: 'field', field: 'departamento', format: 'mayus', required: true }, { max: 100 }),
   T('Country', 'Country', 'País', { src: 'fixed', value: 'HN' }, { max: 3 }),
   T('DebitorAccount', 'DebPayAcct', 'Cuenta por cobrar', { src: 'fixed', value: '_SYS00000001984' }, { max: 15 }),
   T('U_Dia_Visita', 'U_Dia_Visita', 'Día de visita (1 lunes … 7 domingo)', { src: 'dia', format: 'texto', required: true }),
-  T('Territory', 'Territory', 'Territorio', { src: 'fixed', value: '' }, { max: 11, aliases: ['territorio', 'territory'] }),
+  T('Territory', 'Territory', 'Territorio', { src: 'territorio' }, { max: 11 }),
   T('Properties1', 'QryGroup1', 'Propiedad 1', { src: 'fixed', value: 'tYES' }),
   T('U_TaxCode', 'U_TaxCode', 'Código de impuesto', { src: 'fixed', value: 'EXE' }),
   T('RTN', 'RTN', 'RTN', { src: 'fixed', value: '', format: 'rtn' }, { aliases: ['rtn', 'r.t.n', 'r t n'] }),
 ];
-const SRC_LABELS = { ruta: 'Ruta del archivo', dia: 'Día de visita del archivo (número)', fixed: 'Valor fijo' };
+const SRC_LABELS = {
+  ruta: 'Ruta del archivo', dia: 'Día de visita del archivo (número)', lista: 'Lista de precios del archivo',
+  vendedor: 'Vendedor según la ruta', territorio: 'Territorio según el departamento', fixed: 'Valor fijo',
+};
 const PER_CLIENT = c => c.src !== 'fixed';
 
 /* ---------- Estado ---------- */
@@ -595,15 +642,17 @@ const state = {
   files: [], active: 0, tcfg: {},
   splitName: true, splitDesc: true, fmt: ',', bom: true, showFixed: false, onlyIssues: false, filterCol: null,
 };
-const SAVED = ['tcfg', 'cfgOpen', 'splitName', 'splitDesc', 'fmt', 'bom', 'showFixed'];
+const SAVED = ['tcfg', 'cfgOpen', 'splitName', 'splitDesc', 'fmt', 'bom', 'showFixed', 'lastLista'];
 try {
   const s = JSON.parse(localStorage.getItem(STORE) || '{}');
   for (const k of SAVED) if (k in s) state[k] = s[k];
   // versiones anteriores: CardCode automático y día en texto
   if (!s.v3) { delete state.tcfg.CardCode; delete state.tcfg.U_Dia_Visita; }
+  // v4: lista de precios, vendedor y territorio salen de los catálogos
+  if (!s.v4) { delete state.tcfg.PriceListNum; delete state.tcfg.SalesPersonCode; delete state.tcfg.Territory; }
 } catch {}
 function save() {
-  try { localStorage.setItem(STORE, JSON.stringify({ v3: true, ...Object.fromEntries(SAVED.map(k => [k, state[k]])) })); } catch {}
+  try { localStorage.setItem(STORE, JSON.stringify({ v3: true, v4: true, ...Object.fromEntries(SAVED.map(k => [k, state[k]])) })); } catch {}
 }
 const colCfg = col => state.tcfg[col.api] || (state.tcfg[col.api] = { src: 'fixed', field: '', value: '', format: 'texto', required: false, ...col.def });
 // Si un valor fijo está vacío y el GPX trae ese dato (ej. RTN), se usa el del GPX
@@ -629,7 +678,7 @@ function fileInfo(name) {
 }
 
 function buildRows(f) {
-  f.rows = []; f.meta = [];
+  f.rows = []; f.meta = []; f.undo = [];
   f.raw.forEach((r, i) => { const { row, meta } = expand(r); f.rows.push({ ...row, ...(f.edits[i] || {}) }); f.meta.push(meta); });
   f.keys = [];
   for (const r of f.rows) for (const k of Object.keys(r)) if (!f.keys.includes(k)) f.keys.push(k);
@@ -640,17 +689,21 @@ const allKeys = () => {
   for (const f of state.files) for (const k of f.keys) if (!keys.includes(k)) keys.push(k);
   return keys;
 };
-function rawValue(f, i, c) {
+function rawValue(f, i, c, cells) {
   switch (c.src) {
     case 'field': return f.rows[i][c.field] ?? '';
     case 'ruta': return f.ruta;
     case 'dia': return f.dia ? String(DIAS.indexOf(f.dia) + 1) : ''; // LUNES → 1 … DOMINGO → 7
+    case 'lista': return f.lista || '';
+    case 'vendedor': return f.slp || '';
+    case 'territorio': return cells.County ? territoryFor(cells.County.value) : '';
     default: return c.value;
   }
 }
 function evalCol(raw, c, col) {
   let r = c.src === 'fixed' ? ok(String(raw)) : (FORMATS[c.format] || FORMATS.texto).fn(raw);
   if (c.required && r.value === '') r = bad('', 'Dato obligatorio vacío');
+  if (col.warnEmpty && c.src === col.def.src && r.value === '' && r.level === 'ok') r = warn('', col.warnEmpty);
   if (col.max && r.value.length > col.max) r = bad(r.value, `Máximo ${col.max} caracteres (tiene ${r.value.length})`);
   if (r.level === 'ok' && r.value.includes('�')) r = warn(r.value, 'Carácter dañado (�): revisa tildes o ñ');
   return r;
@@ -663,7 +716,7 @@ function analyze(f) {
   f.results = f.rows.map((r, i) => {
     const off = f.excluded.has(i);
     const cells = {};
-    for (const [col, c] of srcs) cells[col.api] = evalCol(rawValue(f, i, c), c, col);
+    for (const [col, c] of srcs) cells[col.api] = evalCol(rawValue(f, i, c, cells), c, col);
     if (off) {
       for (const k in cells) cells[k] = ok(cells[k].value);
       return { cells, lvl: 'off' };
@@ -673,6 +726,13 @@ function analyze(f) {
       if (p.muni) cells.City = p.muni;
       if (p.dep) cells.County = p.dep;
     }
+    // negocio y propietario invertidos: "ROSAURA LOPEZ / PULPERIA GABY"
+    let swap = false;
+    const name = cells.CardName, owner = cells.Notes;
+    if (name.level === 'ok' && owner.level === 'ok' && isBiz(owner.value) && !isBiz(name.value)) {
+      const msg = '¿Negocio y propietario invertidos? Usa ⇄ en la fila para intercambiarlos';
+      cells.CardName = warn(name.value, msg); cells.Notes = warn(owner.value, msg); swap = true;
+    }
     let lvl = 'ok';
     for (const [k, res] of Object.entries(cells)) {
       if (res.level === 'ok') continue;
@@ -680,7 +740,7 @@ function analyze(f) {
       if (res.level === 'err') lvl = 'err'; else if (lvl === 'ok') lvl = 'warn';
     }
     if (lvl === 'err') errRows++; else if (lvl === 'warn') warnRows++;
-    return { cells, lvl };
+    return { cells, lvl, swap };
   });
   f.srcs = Object.fromEntries(srcs.map(([col, c]) => [col.api, c]));
   f.stats = { total: f.rows.length - f.excluded.size, excluded: f.excluded.size, errRows, warnRows, perCol };
@@ -731,7 +791,14 @@ function renderFileBar() {
   $('#filebar').hidden = !f;
   if (!f) return;
   if (document.activeElement !== $('#fRuta')) $('#fRuta').value = f.ruta;
+  if (document.activeElement !== $('#fSlp')) $('#fSlp').value = f.slp;
   $('#fDia').value = f.dia;
+  $('#fLista').value = f.lista;
+  $('#fLista').classList.toggle('bad', !f.lista);
+  const known = ROUTE_SLP[routeKey(f.ruta)], el = $('#fSlpName');
+  el.className = 'slp-name' + (f.slp ? '' : ' warn');
+  el.textContent = !f.slp ? 'Ruta no está en el catálogo: escribe el código'
+    : known && String(known[0]) === f.slp ? (known[1] || 'Sin nombre en el catálogo') : 'Código escrito a mano';
 }
 function renderSummary() {
   const f = activeFile();
@@ -760,18 +827,21 @@ function renderTable() {
     shown++;
     const off = res.lvl === 'off', meta = f.meta[i];
     const orig = meta.orig ? ` title="Texto original: ${esc(clean(meta.orig))}"` : '';
-    html += `<tr class="r-${res.lvl}"><td class="n"${orig}>${i + 1}<button class="rowx" data-ex="${i}">${off ? 'Incluir' : 'Excluir'}</button></td>${cols.map(col => {
+    const swapBtn = res.swap && f.srcs.CardName.src === 'field' && f.srcs.Notes.src === 'field'
+      ? `<button class="rowx swap" data-swap="${i}" title="Intercambiar negocio y propietario">⇄</button>` : '';
+    html += `<tr class="r-${res.lvl}"><td class="n"${orig}>${i + 1}<button class="rowx" data-ex="${i}">${off ? 'Incluir' : 'Excluir'}</button>${swapBtn}</td>${cols.map(col => {
       const c = res.cells[col.api], s = f.srcs[col.api];
       const editable = !off && s.src === 'field';
       const edited = s.src === 'field' && f.edits[i] && s.field in f.edits[i];
       const fixed = s.src === 'field' && !edited && c.level === 'ok' && meta.fix[s.field];
-      const msg = c.msg || fixed || (s.src !== 'field' ? `${SRC_LABELS[s.src]}: se cambia en el panel` : '');
+      const msg = c.msg || fixed || (editable ? 'Clic para corregir · arrastra a otra celda de la fila para intercambiar' : `${SRC_LABELS[s.src]}: se cambia en el panel`);
       const cls = ['v', c.level !== 'ok' ? c.level : '', edited ? 'edited' : '', fixed ? 'fixed' : '', editable ? '' : 'const'].join(' ');
-      return `<td class="${cls}" contenteditable="${editable}" spellcheck="false" data-r="${i}" data-col="${col.api}" data-field="${editable ? esc(s.field) : ''}" data-v="${esc(c.value)}"${msg ? ` title="${esc(msg)}"` : ''}>${esc(c.value)}</td>`;
+      return `<td class="${cls}" contenteditable="${editable}" draggable="${editable}" spellcheck="false" data-r="${i}" data-col="${col.api}" data-field="${editable ? esc(s.field) : ''}" data-v="${esc(c.value)}" title="${esc(msg)}">${esc(c.value)}</td>`;
     }).join('')}</tr>`;
   });
   if (!shown) html += `<tr><td class="empty" colspan="${cols.length + 1}">No hay filas con problemas. El archivo está listo.</td></tr>`;
   t.innerHTML = html + '</tbody>';
+  $('#undoBtn').disabled = !f.undo.length;
 }
 
 /* ---------- Archivos ---------- */
@@ -780,7 +850,8 @@ async function addFiles(list) {
   for (const file of list) {
     try {
       const raw = parseGpx(decodeBuffer(await file.arrayBuffer()));
-      const f = { name: file.name, raw, edits: {}, excluded: new Set(), ...fileInfo(file.name) };
+      const f = { name: file.name, raw, edits: {}, excluded: new Set(), undo: [], lista: state.lastLista || '', ...fileInfo(file.name) };
+      f.slp = slpFor(f.ruta);
       buildRows(f); state.files.push(f); state.active = state.files.length - 1;
     } catch (e) { errors.push(`${file.name}: ${e.message}`); }
   }
@@ -907,9 +978,11 @@ function downloadXLSX(f) { saveBlob(toXLSX(f), baseName(f) + '.xlsx'); }
 $('#pick').onclick = () => $('#fileInput').click();
 $('#fileInput').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
 const drop = $('#drop');
-addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+// solo para archivos arrastrados desde Windows; las celdas de la tabla tienen su propio arrastre
+const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+addEventListener('dragover', e => { if (!hasFiles(e)) return; e.preventDefault(); drop.classList.add('over'); });
 addEventListener('dragleave', e => { if (!e.relatedTarget) drop.classList.remove('over'); });
-addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files].filter(f => /\.gpx$/i.test(f.name) || f.type.includes('xml'))); });
+addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files].filter(f => /\.gpx$/i.test(f.name) || f.type.includes('xml'))); });
 
 $('#files').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -929,8 +1002,16 @@ function onColChange(e) {
 $('#colsMain').addEventListener('change', onColChange);
 $('#colsFixed').addEventListener('change', onColChange);
 $('#resetCols').onclick = () => { state.tcfg = {}; save(); render(); };
-$('#fRuta').addEventListener('input', e => { activeFile().ruta = e.target.value.toUpperCase(); render(); });
+$('#fRuta').addEventListener('input', e => {
+  const f = activeFile(); f.ruta = e.target.value.toUpperCase();
+  if (!f.slpManual) f.slp = slpFor(f.ruta); // el vendedor sigue a la ruta mientras no se escriba a mano
+  render();
+});
 $('#fDia').onchange = e => { activeFile().dia = e.target.value; render(); };
+$('#fLista').innerHTML = '<option value="">(elige una)</option>' + PRICE_LISTS.map(([n, name]) => `<option value="${n}">${n} – ${esc(name)}</option>`).join('');
+$('#fLista').onchange = e => { activeFile().lista = state.lastLista = e.target.value; save(); render(); };
+$('#fSlp').addEventListener('input', e => { const f = activeFile(); f.slp = e.target.value.trim(); f.slpManual = !!f.slp; render(); });
+$('#undoBtn').onclick = () => { const f = activeFile(); if (f && undoLast(f)) render(); };
 $('#chips').onclick = e => { const b = e.target.closest('[data-chip]'); if (!b) return; state.filterCol = state.filterCol === b.dataset.chip ? null : b.dataset.chip; render(); };
 $('#onlyIssues').onchange = e => { state.onlyIssues = e.target.checked; render(); };
 $('#showFixed').onchange = e => { state.showFixed = e.target.checked; save(); render(); };
@@ -942,13 +1023,64 @@ $('#download').onclick = () => { commitActive(); const f = activeFile(); if (f &
 $('#downloadXlsx').onclick = () => { commitActive(); const f = activeFile(); if (f) downloadXLSX(f); };
 $('#downloadAll').onclick = () => { commitActive(); if (confirmErrors(state.files)) state.files.forEach((f, i) => setTimeout(() => download(f), i * 400)); };
 
+// Cambia datos de una fila recordando cómo estaban, para poder deshacer
+function setVals(f, i, changes) {
+  const prev = {};
+  for (const k of Object.keys(changes)) prev[k] = { row: f.rows[i][k], had: !!(f.edits[i] && k in f.edits[i]), edit: f.edits[i]?.[k] };
+  f.undo.push({ i, prev });
+  for (const [k, v] of Object.entries(changes)) { (f.edits[i] ||= {})[k] = v; f.rows[i][k] = v; }
+}
+function undoLast(f) {
+  const u = f.undo.pop(); if (!u) return false;
+  for (const [k, p] of Object.entries(u.prev)) {
+    if (p.had) f.edits[u.i][k] = p.edit; else if (f.edits[u.i]) delete f.edits[u.i][k];
+    f.rows[u.i][k] = p.row;
+  }
+  return true;
+}
+const swapVals = (f, i, a, b) => setVals(f, i, { [a]: f.rows[i][b] ?? '', [b]: f.rows[i][a] ?? '' });
+
 const table = $('#table');
 table.addEventListener('click', e => {
+  const f = activeFile();
+  const sw = e.target.closest('[data-swap]');
+  if (sw) { swapVals(f, +sw.dataset.swap, f.srcs.CardName.field, f.srcs.Notes.field); render(); return; }
   const b = e.target.closest('[data-ex]'); if (!b) return;
-  const ex = activeFile().excluded, i = +b.dataset.ex;
+  const ex = f.excluded, i = +b.dataset.ex;
   ex.has(i) ? ex.delete(i) : ex.add(i);
   render();
 });
+
+// Arrastrar una celda sobre otra de la misma fila intercambia sus valores
+let drag = null;
+const cellOf = e => e.target.closest ? e.target.closest('td.v') : null;
+const dropCell = e => { const td = cellOf(e); return td && drag && td.dataset.field && td.dataset.r === drag.r && td.dataset.field !== drag.field ? td : null; };
+const clearDrag = () => table.querySelectorAll('.dragging, .drop-target').forEach(x => x.classList.remove('dragging', 'drop-target'));
+table.addEventListener('dragstart', e => {
+  const td = cellOf(e); if (!td || !td.dataset.field) return;
+  drag = { r: td.dataset.r, field: td.dataset.field };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', td.textContent);
+  td.classList.add('dragging');
+});
+table.addEventListener('dragover', e => {
+  if (!drag) return;
+  const td = dropCell(e);
+  if (!td) { e.dataTransfer.dropEffect = 'none'; return; }
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  table.querySelectorAll('.drop-target').forEach(x => x !== td && x.classList.remove('drop-target'));
+  td.classList.add('drop-target');
+});
+table.addEventListener('drop', e => {
+  if (!drag) return;
+  e.preventDefault(); // nunca dejar que el navegador pegue el texto dentro de la celda
+  const td = dropCell(e);
+  if (td) swapVals(activeFile(), +drag.r, drag.field, td.dataset.field);
+  drag = null; clearDrag(); render();
+});
+table.addEventListener('dragend', () => { drag = null; clearDrag(); });
+// mientras se edita una celda se puede seleccionar texto con el mouse
+table.addEventListener('focusin', e => { const td = cellOf(e); if (td && td.dataset.field) td.draggable = false; });
 table.addEventListener('keydown', e => {
   if (!e.target.matches('td.v')) return;
   if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
@@ -962,11 +1094,11 @@ function commitCell(td) {
   if (td.dataset.cancel) return true;
   const now = td.textContent.trim();
   if (now === td.dataset.v || now === clean(f.rows[i][k] ?? '')) return false;
-  (f.edits[i] ||= {})[k] = now;
-  f.rows[i][k] = now;
+  setVals(f, i, { [k]: now });
   return true;
 }
 table.addEventListener('focusout', e => {
+  if (e.target.dataset && e.target.dataset.field) e.target.draggable = true;
   if (!commitCell(e.target)) return;
   // si el clic fue en otra celda, se vuelve a enfocar después de redibujar
   const to = e.relatedTarget && e.relatedTarget.matches && e.relatedTarget.matches('td.v') ? e.relatedTarget : null;
