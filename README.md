@@ -8,7 +8,9 @@ Herramienta local para convertir archivos `.gpx` con datos de clientes a `.csv`,
 2. Carga uno o varios archivos `.gpx` (botón o arrastrar y soltar).
 3. En **Columnas y formatos** elige qué columnas van al CSV, su nombre, formato y si son obligatorias.
 4. Corrige las celdas en rojo haciendo clic sobre ellas.
-5. Pulsa **Descargar CSV**.
+5. Pulsa **Descargar CSV** para obtener el archivo que se sube a la plataforma.
+
+Para revisar los datos en Excel usa **Descargar Excel (revisión)**: genera un `.xlsx` con columnas separadas, filtros, encabezado fijo y los errores en rojo. (Excel separa un `.csv` según la configuración regional de Windows, por eso al abrirlo con doble clic puede verse todo en una sola columna.)
 
 Todo se procesa en el navegador; no se envía ningún dato a internet.
 
@@ -24,5 +26,7 @@ Todo se procesa en el navegador; no se envía ningún dato a internet.
   | Coordenada | `14.0818` | `14.081800` |
   | Nombre Propio | `MARIA DE LA PAZ` | `Maria de la Paz` |
   | MAYÚSCULAS, Solo dígitos, Correo | | |
+- **Nombre separado por "/"**: `NEGOCIO / PROPIETARIO / TELÉFONO / DIRECCIÓN / MUNICIPIO / DEPARTAMENTO` se reparte en columnas; detecta el teléfono aunque venga pegado al nombre y corrige errores en municipio y departamento (`DIATRITO CENTRAL` → `DISTRITO CENTRAL`).
+- **Excluir filas**: los puntos que no son clientes (por ejemplo `IMP 01`) se pueden dejar fuera del CSV.
 - **Descripción en columnas**: separa líneas tipo `Teléfono: 9800…` o tablas HTML dentro de `<desc>`.
 - La configuración de columnas se guarda en el navegador y se reutiliza en cada archivo.
