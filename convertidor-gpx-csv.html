@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Convertidor GPX a CSV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: barra superior con archivos y exportación; panel de columnas a la izquierda, tabla de clientes a la derecha. */
+:root {
+  --bg: #f3f6f5; --surface: #ffffff; --ink: #16201c; --muted: #5a6963; --line: #d8e0dc;
+  --accent: #0d6b58; --accent-ink: #ffffff; --accent-soft: #e2f1ec;
+  --err: #b42323; --err-bg: #fde7e4; --warn: #9a5b00; --warn-bg: #fff2d6; --ok: #2c7a39; --ok-bg: #e4f4e6;
+  --f-ui: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --f-data: "JetBrains Mono", Consolas, "Courier New", monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1412; --surface: #151d1a; --ink: #e3ebe7; --muted: #92a29b; --line: #29342f;
+    --accent: #4fc4a7; --accent-ink: #0b1714; --accent-soft: #173029;
+    --err: #ff8078; --err-bg: #3b1918; --warn: #f1b552; --warn-bg: #33270e; --ok: #74d083; --ok-bg: #16301b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1412; --surface: #151d1a; --ink: #e3ebe7; --muted: #92a29b; --line: #29342f;
+  --accent: #4fc4a7; --accent-ink: #0b1714; --accent-soft: #173029;
+  --err: #ff8078; --err-bg: #3b1918; --warn: #f1b552; --warn-bg: #33270e; --ok: #74d083; --ok-bg: #16301b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-ui); padding: 20px 16px 40px; }
+.wrap { max-width: 1400px; margin: 0 auto; display: grid; gap: 16px; }
+h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; font-weight: 600; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header.top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+header.top p { margin: 2px 0 0; color: var(--muted); }
+
+.drop { border: 1.5px dashed var(--line); border-radius: 10px; background: var(--surface); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop .hint { color: var(--muted); }
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 7px 14px; border-radius: 7px; font-weight: 500; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.small { padding: 3px 9px; font-size: 12px; }
+.files { display: flex; flex-wrap: wrap; gap: 8px; }
+.file { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 4px 6px 4px 12px; }
+.file.active { border-color: var(--accent); background: var(--accent-soft); }
+.file button.name { border: 0; background: none; padding: 0; font-weight: 600; }
+.file .x { border: 0; background: none; color: var(--muted); padding: 0 6px; font-size: 16px; line-height: 1; }
+.tag { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; letter-spacing: 0.02em; }
+.tag.err { background: var(--err-bg); color: var(--err); }
+.tag.ok { background: var(--ok-bg); color: var(--ok); }
+
+.main { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 12px; min-width: 0; }
+
+.cols { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.col { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 6px; }
+.col.off { opacity: 0.55; }
+.col-head { display: flex; align-items: center; gap: 8px; }
+.col-head .src { font-family: var(--f-data); font-size: 12px; color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.move { display: flex; gap: 2px; }
+.move button { border: 1px solid var(--line); background: var(--bg); border-radius: 5px; width: 24px; height: 22px; padding: 0; font-size: 11px; color: var(--muted); }
+.col-body { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.col-body input[type=text], .col-body select, .opts select { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 4px 6px; min-width: 0; }
+.col-body label { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+.col-body label.req-on { color: var(--err); font-weight: 600; }
+
+.opts { display: grid; gap: 8px; }
+.opts label { display: flex; gap: 8px; align-items: center; }
+.opts .row { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; }
+.note { font-size: 12px; color: var(--muted); margin: 0; }
+
+.summary { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: baseline; }
+.stat b { font-size: 22px; font-variant-numeric: tabular-nums; margin-right: 4px; }
+.stat.e b { color: var(--err); }
+.stat.w b { color: var(--warn); }
+.stat.o b { color: var(--ok); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--err); color: var(--err); background: var(--err-bg); border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+.chip.warn { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
+.chip.on { outline: 2px solid currentColor; outline-offset: 1px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+
+.tablebox { overflow: auto; max-height: 68vh; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--surface); z-index: 1; font-size: 12px; font-weight: 600; color: var(--muted); }
+th .req { color: var(--err); }
+td.n { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+tr.r-err td.n { box-shadow: inset 4px 0 0 var(--err); }
+tr.r-warn td.n { box-shadow: inset 4px 0 0 var(--warn); }
+td.v { font-family: var(--f-data); font-size: 12.5px; max-width: 320px; white-space: normal; min-width: 90px; cursor: text; }
+td.v:hover { background: var(--accent-soft); }
+td.v:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--surface); }
+td.v.err { background: var(--err-bg); color: var(--err); }
+td.v.warn { background: var(--warn-bg); color: var(--warn); }
+td.v.err:empty::before { content: "Falta dato"; font-family: var(--f-ui); font-style: italic; font-weight: 600; }
+td.v.edited { box-shadow: inset 0 -2px 0 var(--accent); }
+td.v .msg { display: block; font-family: var(--f-ui); font-size: 11px; font-weight: 600; }
+.empty { padding: 40px; text-align: center; color: var(--muted); }
+.error-box { background: var(--err-bg); color: var(--err); border-radius: 8px; padding: 10px 14px; font-weight: 500; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.legend .l-err::before { background: var(--err); }
+.legend .l-warn::before { background: var(--warn); }
+.legend .l-ed::before { background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Convertidor GPX a CSV</h1>
+      <p>Todo se procesa en tu computadora. Los datos de los clientes no se suben a ningún sitio.</p>
+    </div>
+    <div class="legend">
+      <span class="l-err">Falta dato o formato inválido</span>
+      <span class="l-warn">Revisar</span>
+      <span class="l-ed">Editado a mano</span>
+    </div>
+  </header>
+
+  <section class="drop" id="drop">
+    <button class="btn primary" id="pick">Abrir archivos .gpx</button>
+    <input type="file" id="fileInput" accept=".gpx,application/gpx+xml,text/xml" multiple hidden>
+    <span class="hint">o arrástralos aquí. Puedes cargar varios a la vez.</span>
+    <div class="files" id="files"></div>
+  </section>
+  <div id="loadError" class="error-box" hidden></div>
+
+  <div class="main">
+    <aside class="panel">
+      <div class="toolbar"><h2>Columnas y formatos</h2><button class="btn small" id="resetCols">Restablecer</button></div>
+      <p class="note">Marca las columnas que van al CSV, cámbiales el nombre y elige el formato. Esta configuración se recuerda para los próximos archivos.</p>
+      <ul class="cols" id="cols"></ul>
+      <h2>Lectura del GPX</h2>
+      <div class="opts">
+        <label><input type="checkbox" id="splitDesc"> Separar la descripción en columnas (líneas tipo <code>Teléfono: 9800…</code>)</label>
+      </div>
+      <h2>Exportación</h2>
+      <div class="opts">
+        <div class="row"><span>Separador</span>
+          <select id="sep"><option value=",">Coma ( , )</option><option value=";">Punto y coma ( ; )</option></select></div>
+        <label><input type="checkbox" id="bom"> Compatible con Excel (UTF-8 con BOM)</label>
+        <p class="note">Con esta opción Excel muestra bien las tildes y la ñ. Si la plataforma muestra un carácter raro al inicio del primer encabezado, desmárcala.</p>
+      </div>
+    </aside>
+
+    <section class="panel">
+      <div class="toolbar">
+        <div class="summary" id="summary"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="downloadAll" hidden>Descargar todos</button>
+          <button class="btn primary" id="download">Descargar CSV</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="chips" id="chips"></div>
+        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="onlyIssues"> Mostrar solo filas con problemas</label>
+      </div>
+      <div class="tablebox"><table id="table"></table></div>
+      <p class="note">Haz clic en cualquier celda para corregirla. Al salir de la celda se aplica el formato automáticamente.</p>
+    </section>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+const clean = v => String(v ?? '').replace(/\s+/g, ' ').trim();
+const ok = value => ({ value, level: 'ok' });
+const bad = (value, msg) => ({ value, level: 'err', msg });
+
+/* ---------- Formatos ---------- */
+const SMALL = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'e', 'el']);
+function titleCase(s) {
+  return s.toLocaleLowerCase('es').split(' ').map((w, i) =>
+    i > 0 && SMALL.has(w) ? w : w.charAt(0).toLocaleUpperCase('es') + w.slice(1)).join(' ');
+}
+function fmtPhone(v) {
+  const s = clean(v); if (!s) return ok('');
+  const parts = s.split(/\s*[\/,;]\s*|\s+y\s+|\s+o\s+/i).filter(Boolean);
+  let wrong = false;
+  const out = parts.map(p => {
+    let d = p.replace(/\D/g, '');
+    if (d.length === 11 && /^50[2-7]/.test(d)) d = d.slice(3); // quita código de país (+504, +502…)
+    if (d.length === 8) return d.slice(0, 4) + '-' + d.slice(4);
+    wrong = true; return p;
+  }).join(' / ');
+  return wrong ? bad(out, 'El teléfono debe tener 8 dígitos') : ok(out);
+}
+function fmtId(v) {
+  const s = clean(v); if (!s) return ok('');
+  const d = s.replace(/\D/g, '');
+  return d.length === 13 ? ok(`${d.slice(0, 4)}-${d.slice(4, 8)}-${d.slice(8)}`) : bad(s, 'La identidad debe tener 13 dígitos');
+}
+function fmtCoord(v) {
+  const s = clean(v).replace(',', '.'); if (!s) return ok('');
+  const n = Number(s);
+  if (!isFinite(n)) return bad(s, 'Coordenada inválida');
+  if (n === 0) return { value: '0.000000', level: 'warn', msg: 'Coordenada en 0' };
+  return ok(n.toFixed(6));
+}
+function fmtEmail(v) {
+  const s = clean(v).toLowerCase(); if (!s) return ok('');
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? ok(s) : bad(s, 'Correo inválido');
+}
+const FORMATS = {
+  texto:     { label: 'Texto (limpia espacios)', fn: v => ok(clean(v)) },
+  titulo:    { label: 'Nombre Propio', fn: v => ok(titleCase(clean(v))) },
+  mayus:     { label: 'MAYÚSCULAS', fn: v => ok(clean(v).toLocaleUpperCase('es')) },
+  telefono:  { label: 'Teléfono 9800-1100', fn: fmtPhone },
+  identidad: { label: 'Identidad 0801-1990-12345', fn: fmtId },
+  digitos:   { label: 'Solo dígitos', fn: v => ok(clean(v).replace(/\D/g, '')) },
+  coord:     { label: 'Coordenada (6 decimales)', fn: fmtCoord },
+  correo:    { label: 'Correo (minúsculas)', fn: fmtEmail },
+  original:  { label: 'Sin cambios', fn: v => ok(String(v ?? '')) },
+};
+function evalCell(raw, c) {
+  let r = (FORMATS[c.format] || FORMATS.texto).fn(raw);
+  if (c.required && r.value === '') r = bad('', 'Dato obligatorio vacío');
+  if (r.level === 'ok' && r.value.includes('�')) r = { ...r, level: 'warn', msg: 'Carácter dañado (�): revisa tildes o ñ' };
+  return r;
+}
+
+/* ---------- Codificación ---------- */
+const CP1252 = (() => {
+  const dec = new TextDecoder('windows-1252'), m = new Map();
+  for (let b = 0; b < 256; b++) m.set(dec.decode(new Uint8Array([b])), b);
+  return m;
+})();
+// Repara textos tipo "MarÃ­a" / "PeÃ±a" (UTF-8 leído como Latin-1)
+function fixMojibake(s) {
+  if (!/[ÃÂ][\u0080-ÿŒ-™]/.test(s)) return s;
+  const bytes = [];
+  for (const ch of s) { const b = CP1252.get(ch); if (b === undefined) return s; bytes.push(b); }
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); } catch { return s; }
+}
+function decodeBuffer(buf) {
+  const head = new TextDecoder('windows-1252').decode(buf.slice(0, 300));
+  const enc = (head.match(/encoding\s*=\s*["']([\w.-]+)["']/i) || [])[1] || 'utf-8';
+  try { return new TextDecoder(enc, { fatal: true }).decode(buf); }
+  catch { return new TextDecoder('windows-1252').decode(buf); }
+}
+
+/* ---------- Lectura GPX ---------- */
+const byTag = (doc, t) => [...doc.getElementsByTagNameNS('*', t)];
+function leaves(el) {
+  const out = [];
+  (function walk(e) { for (const c of e.children) c.children.length ? walk(c) : out.push(c); })(el);
+  return out;
+}
+function parseGpx(text) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('el archivo no es un GPX válido (el XML tiene errores).');
+  let pts = byTag(doc, 'wpt');
+  if (!pts.length) pts = byTag(doc, 'rtept');
+  if (!pts.length) pts = byTag(doc, 'trkpt');
+  if (!pts.length) throw new Error('no se encontraron puntos (wpt) dentro del archivo.');
+  return pts.map(pt => {
+    const rec = {};
+    const put = (k, v) => { let key = fixMojibake(k), i = 2; while (key in rec) key = `${k}_${i++}`; rec[key] = fixMojibake(v); };
+    put('lat', pt.getAttribute('lat') || '');
+    put('lon', pt.getAttribute('lon') || '');
+    for (const ch of pt.children) {
+      if (ch.localName === 'link') { put('link', ch.getAttribute('href') || ''); continue; }
+      if (ch.children.length) { leaves(ch).forEach(l => put(l.localName, l.textContent.trim())); continue; }
+      put(ch.localName, ch.textContent.trim());
+    }
+    return rec;
+  });
+}
+// "Teléfono: 9800 / Dirección: ..." o tabla HTML dentro de <desc>
+function splitKV(text) {
+  let lines;
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    const d = new DOMParser().parseFromString(text, 'text/html');
+    const pairs = [];
+    d.querySelectorAll('tr').forEach(tr => {
+      const c = tr.querySelectorAll('td,th');
+      if (c.length === 2) pairs.push([c[0].textContent, c[1].textContent]);
+    });
+    if (pairs.length) return { pairs, rest: '' };
+    d.querySelectorAll('br').forEach(b => b.replaceWith('\n'));
+    d.querySelectorAll('p,div,li').forEach(e => e.append('\n'));
+    lines = d.body.textContent.split('\n');
+  } else lines = text.split(/\r?\n|\|/);
+  const pairs = [], rest = [];
+  for (const l of lines) {
+    const m = l.match(/^\s*([^:\n]{1,40}?)\s*:\s*(.*)$/);
+    if (m && !/^https?$/i.test(m[1])) pairs.push([m[1], m[2]]);
+    else if (l.trim()) rest.push(l.trim());
+  }
+  return { pairs, rest: rest.join(' ') };
+}
+function expand(rec) {
+  if (!state.splitDesc) return { ...rec };
+  const out = {};
+  for (const [k, v] of Object.entries(rec)) {
+    if ((k === 'desc' || k === 'cmt') && v) {
+      const { pairs, rest } = splitKV(v);
+      if (pairs.length) {
+        if (rest) out[k] = rest;
+        for (const [pk, pv] of pairs) { const key = clean(pk); if (!(key in out)) out[key] = clean(pv); }
+        continue;
+      }
+    }
+    if (!(k in out)) out[k] = v;
+  }
+  return out;
+}
+
+/* ---------- Estado ---------- */
+const STORE = 'gpx2csv.v1';
+const state = { files: [], active: 0, cols: {}, order: [], splitDesc: true, sep: ',', bom: true, onlyIssues: false, filterCol: null };
+try {
+  const s = JSON.parse(localStorage.getItem(STORE) || '{}');
+  Object.assign(state, { cols: s.cols || {}, order: s.order || [] });
+  if ('splitDesc' in s) state.splitDesc = s.splitDesc;
+  if ('sep' in s) state.sep = s.sep;
+  if ('bom' in s) state.bom = s.bom;
+} catch {}
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify({ cols: state.cols, order: state.order, splitDesc: state.splitDesc, sep: state.sep, bom: state.bom })); } catch {}
+}
+const DEFAULT_NAMES = { name: 'nombre', desc: 'descripcion', cmt: 'comentario', lat: 'latitud', lon: 'longitud' };
+function guess(key) {
+  const n = norm(key);
+  const c = { include: true, name: DEFAULT_NAMES[key] || key, format: 'texto', required: false };
+  if (['lat', 'lon', 'latitud', 'longitud', 'latitude', 'longitude'].includes(n)) { c.format = 'coord'; c.required = true; }
+  else if (/tel|cel|phone|movil|whats/.test(n)) { c.format = 'telefono'; c.required = true; }
+  else if (n === 'name' || /nombre|cliente/.test(n)) c.required = true;
+  else if (/direcc|address|domicilio/.test(n)) c.required = true;
+  else if (/identidad|dni|cedula|dpi/.test(n)) c.format = 'identidad';
+  else if (/correo|email|e-mail/.test(n)) c.format = 'correo';
+  else if (['ele', 'sym', 'type', 'time'].includes(n)) c.include = false;
+  return c;
+}
+const cfg = k => state.cols[k] || (state.cols[k] = guess(k));
+
+function buildRows(f) {
+  f.rows = f.raw.map((r, i) => ({ ...expand(r), ...(f.edits[i] || {}) }));
+  f.keys = [];
+  for (const r of f.rows) for (const k of Object.keys(r)) if (!f.keys.includes(k)) f.keys.push(k);
+  for (const k of f.keys) { cfg(k); if (!state.order.includes(k)) state.order.push(k); }
+}
+const activeFile = () => state.files[state.active];
+const visibleKeys = () => { const present = new Set(state.files.flatMap(f => f.keys)); return state.order.filter(k => present.has(k)); };
+const includedKeys = () => visibleKeys().filter(k => cfg(k).include);
+
+function analyze(f) {
+  const keys = includedKeys();
+  const perCol = {};
+  let errRows = 0, warnRows = 0;
+  f.results = f.rows.map(r => {
+    const cells = {}; let lvl = 'ok';
+    for (const k of keys) {
+      const res = evalCell(r[k] ?? '', cfg(k));
+      cells[k] = res;
+      if (res.level !== 'ok') {
+        (perCol[k] ||= { err: 0, warn: 0 })[res.level]++;
+        if (res.level === 'err') lvl = 'err'; else if (lvl === 'ok') lvl = 'warn';
+      }
+    }
+    if (lvl === 'err') errRows++; else if (lvl === 'warn') warnRows++;
+    return { cells, lvl };
+  });
+  f.stats = { total: f.rows.length, errRows, warnRows, perCol };
+}
+
+/* ---------- Render ---------- */
+function render() {
+  state.files.forEach(analyze);
+  renderFiles(); renderCols(); renderSummary(); renderTable();
+}
+function renderFiles() {
+  $('#files').innerHTML = state.files.map((f, i) => `
+    <span class="file ${i === state.active ? 'active' : ''}">
+      <button class="name" data-i="${i}">${esc(f.name)}</button>
+      <span class="tag ${f.stats.errRows ? 'err' : 'ok'}">${f.stats.total} · ${f.stats.errRows ? f.stats.errRows + ' con errores' : 'completo'}</span>
+      <button class="x" data-x="${i}" aria-label="Quitar ${esc(f.name)}">×</button>
+    </span>`).join('');
+  $('#downloadAll').hidden = state.files.length < 2;
+}
+function renderCols() {
+  const fmtOpts = Object.entries(FORMATS).map(([k, f]) => `<option value="${k}">${esc(f.label)}</option>`).join('');
+  const keys = visibleKeys();
+  $('#cols').innerHTML = keys.map((k, i) => {
+    const c = cfg(k), id = 'c' + i;
+    return `<li class="col ${c.include ? '' : 'off'}" data-k="${esc(k)}">
+      <div class="col-head">
+        <input type="checkbox" id="${id}-inc" data-f="include" ${c.include ? 'checked' : ''} aria-label="Incluir ${esc(k)}">
+        <span class="src" title="Campo en el GPX: ${esc(k)}">${esc(k)}</span>
+        <span class="move"><button data-mv="-1" aria-label="Subir">▲</button><button data-mv="1" aria-label="Bajar">▼</button></span>
+      </div>
+      <div class="col-body">
+        <input type="text" id="${id}-name" data-f="name" value="${esc(c.name)}" aria-label="Nombre en el CSV">
+        <select id="${id}-fmt" data-f="format">${fmtOpts.replace(`value="${c.format}"`, `value="${c.format}" selected`)}</select>
+        <label class="${c.required ? 'req-on' : ''}"><input type="checkbox" id="${id}-req" data-f="required" ${c.required ? 'checked' : ''}> Obligatorio (marcar en rojo si falta)</label>
+      </div></li>`;
+  }).join('') || '<li class="note">Carga un archivo para ver sus campos.</li>';
+}
+function renderSummary() {
+  const f = activeFile();
+  if (!f) { $('#summary').innerHTML = ''; $('#chips').innerHTML = ''; return; }
+  const s = f.stats, okRows = s.total - s.errRows - s.warnRows;
+  $('#summary').innerHTML = `
+    <span class="stat"><b>${s.total}</b>clientes</span>
+    <span class="stat o"><b>${okRows}</b>completos</span>
+    <span class="stat e"><b>${s.errRows}</b>con errores</span>
+    ${s.warnRows ? `<span class="stat w"><b>${s.warnRows}</b>por revisar</span>` : ''}`;
+  $('#chips').innerHTML = Object.entries(s.perCol).map(([k, c]) => {
+    const n = c.err || c.warn;
+    return `<button class="chip ${c.err ? '' : 'warn'} ${state.filterCol === k ? 'on' : ''}" data-chip="${esc(k)}">${esc(cfg(k).name)}: ${n} ${c.err ? 'con problema' : 'por revisar'}</button>`;
+  }).join('');
+}
+function renderTable() {
+  const f = activeFile(), t = $('#table');
+  if (!f) { t.innerHTML = '<tr><td class="empty">Abre un archivo .gpx para empezar.</td></tr>'; return; }
+  const keys = includedKeys();
+  let html = `<thead><tr><th>#</th>${keys.map(k => `<th>${esc(cfg(k).name)}${cfg(k).required ? ' <span class="req" title="Obligatorio">*</span>' : ''}</th>`).join('')}</tr></thead><tbody>`;
+  let shown = 0;
+  f.results.forEach((res, i) => {
+    if (state.onlyIssues && res.lvl === 'ok') return;
+    if (state.filterCol && (!res.cells[state.filterCol] || res.cells[state.filterCol].level === 'ok')) return;
+    shown++;
+    html += `<tr class="r-${res.lvl}"><td class="n">${i + 1}</td>${keys.map(k => {
+      const c = res.cells[k], edited = f.edits[i] && k in f.edits[i];
+      const cls = ['v', c.level !== 'ok' ? c.level : '', edited ? 'edited' : ''].join(' ');
+      return `<td class="${cls}" contenteditable="true" spellcheck="false" data-r="${i}" data-k="${esc(k)}"${c.msg ? ` title="${esc(c.msg)}"` : ''}>${esc(c.value)}</td>`;
+    }).join('')}</tr>`;
+  });
+  if (!shown) html += `<tr><td class="empty" colspan="${keys.length + 1}">No hay filas con problemas. El archivo está listo.</td></tr>`;
+  t.innerHTML = html + '</tbody>';
+}
+
+/* ---------- Archivos ---------- */
+async function addFiles(list) {
+  const errors = [];
+  for (const file of list) {
+    try {
+      const raw = parseGpx(decodeBuffer(await file.arrayBuffer()));
+      const f = { name: file.name, raw, edits: {} };
+      buildRows(f); state.files.push(f); state.active = state.files.length - 1;
+    } catch (e) { errors.push(`${file.name}: ${e.message}`); }
+  }
+  $('#loadError').hidden = !errors.length;
+  $('#loadError').textContent = errors.length ? 'No se pudo leer ' + errors.join(' · ') : '';
+  state.filterCol = null; save(); render();
+}
+function toCSV(f) {
+  const keys = includedKeys(), sep = state.sep;
+  const q = v => /["\r\n]/.test(v) || v.includes(sep) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  const lines = [keys.map(k => q(cfg(k).name)).join(sep)];
+  f.rows.forEach(r => lines.push(keys.map(k => q(evalCell(r[k] ?? '', cfg(k)).value)).join(sep)));
+  return (state.bom ? '﻿' : '') + lines.join('\r\n') + '\r\n';
+}
+function download(f) {
+  const blob = new Blob([toCSV(f)], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = f.name.replace(/\.gpx$/i, '') + '.csv';
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+function confirmErrors(files) {
+  const n = files.reduce((s, f) => s + f.stats.errRows, 0);
+  return !n || confirm(`Hay ${n} fila(s) con datos faltantes o inválidos (marcadas en rojo).\n¿Descargar de todas formas?`);
+}
+
+/* ---------- Eventos ---------- */
+$('#pick').onclick = () => $('#fileInput').click();
+$('#fileInput').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+const drop = $('#drop');
+addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+addEventListener('dragleave', e => { if (!e.relatedTarget) drop.classList.remove('over'); });
+addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files].filter(f => /\.gpx$/i.test(f.name) || f.type.includes('xml'))); });
+
+$('#files').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.i) state.active = +b.dataset.i;
+  if (b.dataset.x) { state.files.splice(+b.dataset.x, 1); state.active = Math.max(0, Math.min(state.active, state.files.length - 1)); }
+  state.filterCol = null; render();
+};
+$('#cols').addEventListener('change', e => {
+  const li = e.target.closest('.col'); if (!li) return;
+  const c = cfg(li.dataset.k), fld = e.target.dataset.f;
+  c[fld] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+  save(); render();
+});
+$('#cols').addEventListener('click', e => {
+  const b = e.target.closest('[data-mv]'); if (!b) return;
+  const keys = visibleKeys(), k = b.closest('.col').dataset.k, i = keys.indexOf(k), j = i + +b.dataset.mv;
+  if (j < 0 || j >= keys.length) return;
+  const a = state.order.indexOf(k), z = state.order.indexOf(keys[j]);
+  [state.order[a], state.order[z]] = [state.order[z], state.order[a]];
+  save(); render();
+});
+$('#resetCols').onclick = () => { state.cols = {}; state.order = []; state.files.forEach(buildRows); save(); render(); };
+$('#chips').onclick = e => { const b = e.target.closest('[data-chip]'); if (!b) return; state.filterCol = state.filterCol === b.dataset.chip ? null : b.dataset.chip; render(); };
+$('#onlyIssues').onchange = e => { state.onlyIssues = e.target.checked; render(); };
+$('#splitDesc').onchange = e => { state.splitDesc = e.target.checked; state.files.forEach(buildRows); save(); render(); };
+$('#sep').onchange = e => { state.sep = e.target.value; save(); };
+$('#bom').onchange = e => { state.bom = e.target.checked; save(); };
+$('#download').onclick = () => { const f = activeFile(); if (f && confirmErrors([f])) download(f); };
+$('#downloadAll').onclick = () => { if (confirmErrors(state.files)) state.files.forEach((f, i) => setTimeout(() => download(f), i * 400)); };
+
+const table = $('#table');
+table.addEventListener('keydown', e => {
+  if (!e.target.matches('td.v')) return;
+  if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+  if (e.key === 'Escape') { e.target.dataset.cancel = '1'; e.target.blur(); }
+});
+table.addEventListener('focusout', e => {
+  const td = e.target; if (!td.matches('td.v')) return;
+  const f = activeFile(), i = +td.dataset.r, k = td.dataset.k;
+  if (td.dataset.cancel) { render(); return; }
+  const before = evalCell(f.rows[i][k] ?? '', cfg(k)).value, now = td.textContent.trim();
+  if (now === before) return;
+  (f.edits[i] ||= {})[k] = now;
+  f.rows[i][k] = now;
+  render();
+});
+
+$('#splitDesc').checked = state.splitDesc;
+$('#sep').value = state.sep;
+$('#bom').checked = state.bom;
+render();
+</script>
+</body>
+</html>
