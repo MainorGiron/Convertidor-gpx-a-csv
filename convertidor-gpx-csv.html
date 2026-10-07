@@ -35,6 +35,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* que display:flex/grid no vuelva visible lo que está oculto */
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-ui); padding: 16px 20px 24px; }
 .wrap { display: grid; gap: 14px; }
@@ -141,15 +142,31 @@ td.v.drop-target { outline: 2px dashed var(--ink); outline-offset: -3px; }
 .slp-name.warn { color: var(--warn); font-weight: 600; }
 .field.bad { border-color: var(--err); color: var(--err); }
 #undoBtn:disabled { opacity: 0.45; cursor: default; }
+/* pestañas compactas */
+.files { gap: 6px; }
+.file { gap: 6px; padding: 2px 4px 2px 10px; font-size: 12.5px; }
+.file button.name { font-weight: 600; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file .tag { font-size: 10.5px; padding: 0 6px; font-variant-numeric: tabular-nums; }
+.file .x { font-size: 15px; padding: 0 4px; }
+.file .mark { margin-right: 4px; color: var(--muted); }
 .file.uni { border-style: dashed; border-color: var(--ink); }
 .file.uni.active { border-style: solid; background: var(--accent-soft); }
-.tag.in-uni { background: var(--accent-soft); color: var(--ink); border: 1px solid var(--line); }
+/* resumen editable de la tabla unificada */
 .unibar { display: grid; gap: 8px; padding: 10px 12px; background: var(--bg); border-radius: 8px; }
-.uni-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
-.uni-list { display: grid; gap: 4px; }
-.uni-row { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; padding: 6px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 7px; font-size: 13px; }
-.uni-row b { font-weight: 600; }
-.uni-row .btn { margin-left: auto; }
+.uni-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.uni-all { display: flex; gap: 6px; align-items: center; margin-left: auto; font-size: 13px; font-weight: 500; }
+.uni-all .field { width: auto; }
+.uni-scroll { overflow-x: auto; }
+.uni-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.uni-table th { position: static; background: none; font-family: var(--f-ui); font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px 4px; border-bottom: 1px solid var(--line); }
+.uni-table td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
+.uni-table tr:last-child td { border-bottom: 0; }
+.uni-table .field { padding: 2px 6px; font-size: 12.5px; }
+.uni-table input[data-k="ruta"] { width: 96px; }
+.uni-table input[data-k="slp"] { width: 56px; }
+.uni-table td.slp { display: flex; gap: 8px; align-items: center; }
+.uni-table td.slp .slp-name { white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.field.warn { border-color: var(--warn); }
 .linkish { border: 0; background: none; padding: 0; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .bad-text { color: var(--err); }
 .warn-text { color: var(--warn); }
@@ -823,19 +840,19 @@ function render() {
   if (state.filterCol && (!state.cur || !state.cur.stats.perCol[state.filterCol])) state.filterCol = null;
   renderFiles(); renderCols(); renderFileBar(); renderSummary(); renderTable();
 }
-const tagFor = s => `<span class="tag ${s.errRows ? 'err' : 'ok'}">${s.total} · ${s.errRows ? s.errRows + ' con errores' : 'completo'}</span>`;
+// contador compacto: "34" en verde si está completo, "34 · 2✕" en rojo si tiene errores
+const tagFor = s => `<span class="tag ${s.errRows ? 'err' : 'ok'}" title="${s.total} clientes · ${s.errRows ? s.errRows + ' con errores' : 'completo'}">${s.total}${s.errRows ? ` · ${s.errRows}✕` : ' ✓'}</span>`;
 function renderFiles() {
   const uni = state.unified.length ? `
     <span class="file uni ${state.view === 'unified' ? 'active' : ''}">
-      <button class="name" data-uni="1">Tabla unificada · ${state.unified.length} archivo${state.unified.length > 1 ? 's' : ''}</button>
+      <button class="name" data-uni="1" title="Tabla unificada: ${state.unified.length} archivo(s)">⧉ Unificada (${state.unified.length})</button>
       ${tagFor(state.view === 'unified' ? state.cur.stats : viewStats(state.unified.flatMap(f => f.results.map((res, i) => ({ f, i, res })))))}
     </span>` : '';
   $('#files').innerHTML = uni + state.files.map((f, i) => `
-    <span class="file ${state.view === 'file' && i === state.active ? 'active' : ''}">
-      <button class="name" data-i="${i}">${esc(f.name)}</button>
-      ${state.unified.includes(f) ? '<span class="tag in-uni" title="Está en la tabla unificada">✓ unificada</span>' : ''}
+    <span class="file ${state.view === 'file' && i === state.active ? 'active' : ''} ${state.unified.includes(f) ? 'in-uni' : ''}">
+      <button class="name" data-i="${i}" title="${esc(f.name)}${state.unified.includes(f) ? ' · está en la tabla unificada' : ''}">${state.unified.includes(f) ? '<span class="mark">⧉</span>' : ''}${esc(fileLabel(f))}</button>
       ${tagFor(f.stats)}
-      <button class="x" data-x="${i}" aria-label="Quitar ${esc(f.name)}">×</button>
+      <button class="x" data-x="${i}" aria-label="Quitar ${esc(f.name)}" title="Cerrar archivo">×</button>
     </span>`).join('');
   $('#downloadAll').hidden = state.files.length < 2 || state.view === 'unified';
   const f = activeFile(), inUni = f && state.unified.includes(f);
@@ -872,22 +889,49 @@ function renderUniBar() {
   const files = state.unified, bar = $('#unibar');
   bar.hidden = state.view !== 'unified';
   if (bar.hidden) return;
-  const listName = n => { const p = PRICE_LISTS.find(([k]) => k === n); return p ? `${p[0]} – ${p[1]}` : ''; };
   const dif = k => new Set(files.map(f => f[k])).size > 1;
-  const diffs = [dif('ruta') && 'ruta', dif('dia') && 'día de visita', dif('lista') && 'lista de precios', dif('slp') && 'vendedor'].filter(Boolean);
+  const diffs = [dif('ruta') && 'ruta', dif('dia') && 'día', dif('lista') && 'lista de precios', dif('slp') && 'vendedor'].filter(Boolean);
+  const opts = (list, val) => list.map(([v, t]) => `<option value="${v}"${v === val ? ' selected' : ''}>${esc(t)}</option>`).join('');
+  const DIA_OPTS = [['', '(sin día)'], ...DIAS.map((d, i) => [d, `${titleCase(d)} (${i + 1})`])];
+  const LISTA_OPTS = [['', '(elige)'], ...PRICE_LISTS.map(([n, name]) => [n, `${n} – ${name}`])];
+  const sameLista = !dif('lista') ? files[0].lista : '';
   bar.innerHTML = `
-    <div class="uni-head"><b>Archivos en la tabla unificada</b><span class="note">Se descarga como "${esc(state.cur.name)}". Para cambiar ruta, día, lista o vendedor, abre la pestaña del archivo.</span></div>
-    <div class="uni-list">${files.map(f => `
-      <div class="uni-row">
-        <button class="linkish" data-i="${state.files.indexOf(f)}" title="${esc(f.name)}">${esc(fileLabel(f))}</button>
-        <span>${f.stats.total} clientes</span>
-        <span>Ruta <b>${esc(f.ruta || '—')}</b></span>
-        <span>Día <b>${f.dia ? `${titleCase(f.dia)} (${DIAS.indexOf(f.dia) + 1})` : '—'}</b></span>
-        <span class="${f.lista ? '' : 'bad-text'}">Lista <b>${esc(listName(f.lista) || 'sin elegir')}</b></span>
-        <span class="${f.slp ? '' : 'warn-text'}">Vendedor <b>${esc(f.slp || 'sin código')}</b></span>
-        <button class="btn small" data-unrm="${state.files.indexOf(f)}">Quitar</button>
-      </div>`).join('')}</div>
-    ${diffs.length ? `<p class="uni-warn">Los archivos tienen distinto ${diffs.join(', ')}. Cada cliente conserva el de su archivo; revisa que sean del mismo origen.</p>` : ''}`;
+    <div class="uni-head">
+      <b>Archivos unificados</b>
+      <span class="note">Se descarga como "${esc(state.cur.name)}"</span>
+      <label class="uni-all">Lista para todos <select class="field" id="u-all-lista">${opts([['', dif('lista') ? '(varias)' : '(elige)'], ...LISTA_OPTS.slice(1)], sameLista)}</select></label>
+    </div>
+    <div class="uni-scroll"><table class="uni-table">
+      <thead><tr><th>Archivo</th><th>Clientes</th><th>Ruta</th><th>Día</th><th>Lista de precios</th><th>Vendedor</th><th></th></tr></thead>
+      <tbody>${files.map(f => {
+        const fi = state.files.indexOf(f), known = ROUTE_SLP[routeKey(f.ruta)];
+        const who = !f.slp ? 'falta código' : known && String(known[0]) === f.slp ? (known[1] || '') : 'a mano';
+        return `<tr>
+          <td><button class="linkish" data-i="${fi}" title="Abrir ${esc(f.name)}">${esc(fileLabel(f))}</button></td>
+          <td class="num">${tagFor(f.stats)}</td>
+          <td><input class="field" type="text" id="u-ruta-${fi}" data-fi="${fi}" data-k="ruta" value="${esc(f.ruta)}" aria-label="Ruta"></td>
+          <td><select class="field" id="u-dia-${fi}" data-fi="${fi}" data-k="dia" aria-label="Día de visita">${opts(DIA_OPTS, f.dia)}</select></td>
+          <td><select class="field ${f.lista ? '' : 'bad'}" id="u-lista-${fi}" data-fi="${fi}" data-k="lista" aria-label="Lista de precios">${opts(LISTA_OPTS, f.lista)}</select></td>
+          <td class="slp"><input class="field ${f.slp ? '' : 'warn'}" type="text" inputmode="numeric" id="u-slp-${fi}" data-fi="${fi}" data-k="slp" value="${esc(f.slp)}" aria-label="Código de vendedor"><span class="slp-name ${f.slp ? '' : 'warn'}">${esc(who)}</span></td>
+          <td><button class="btn small" data-unrm="${fi}" title="Sacar de la tabla unificada (el archivo sigue abierto)">Quitar</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+    ${diffs.length ? `<p class="uni-warn">Distinto ${diffs.join(', ')} entre archivos: cada cliente conserva el de su archivo.</p>` : ''}`;
+}
+// Cambia ruta, día, lista o vendedor de un archivo (desde su pestaña o desde la tabla unificada)
+function setFileInfo(f, k, v) {
+  if (k === 'ruta') { f.ruta = v.toUpperCase(); if (!f.slpManual) f.slp = slpFor(f.ruta); }
+  else if (k === 'slp') { f.slp = v.trim(); f.slpManual = !!f.slp; }
+  else if (k === 'lista') { f.lista = state.lastLista = v; save(); }
+  else f[k] = v;
+}
+// redibuja sin perder el cursor del campo que se está escribiendo
+function renderKeepFocus(el) {
+  const id = el.id, pos = el.selectionStart;
+  render();
+  const again = id && document.getElementById(id);
+  if (again && again !== el) { again.focus(); if (pos != null && again.setSelectionRange) again.setSelectionRange(pos, pos); }
 }
 function renderFileBar() {
   renderUniBar();
@@ -1126,15 +1170,22 @@ function onColChange(e) {
 $('#colsMain').addEventListener('change', onColChange);
 $('#colsFixed').addEventListener('change', onColChange);
 $('#resetCols').onclick = () => { state.tcfg = {}; save(); render(); };
-$('#fRuta').addEventListener('input', e => {
-  const f = activeFile(); f.ruta = e.target.value.toUpperCase();
-  if (!f.slpManual) f.slp = slpFor(f.ruta); // el vendedor sigue a la ruta mientras no se escriba a mano
-  render();
-});
-$('#fDia').onchange = e => { activeFile().dia = e.target.value; render(); };
+// el vendedor sigue a la ruta mientras no se escriba a mano (ver setFileInfo)
+$('#fRuta').addEventListener('input', e => { setFileInfo(activeFile(), 'ruta', e.target.value); render(); });
+$('#fDia').onchange = e => { setFileInfo(activeFile(), 'dia', e.target.value); render(); };
 $('#fLista').innerHTML = '<option value="">(elige una)</option>' + PRICE_LISTS.map(([n, name]) => `<option value="${n}">${n} – ${esc(name)}</option>`).join('');
-$('#fLista').onchange = e => { activeFile().lista = state.lastLista = e.target.value; save(); render(); };
-$('#fSlp').addEventListener('input', e => { const f = activeFile(); f.slp = e.target.value.trim(); f.slpManual = !!f.slp; render(); });
+$('#fLista').onchange = e => { setFileInfo(activeFile(), 'lista', e.target.value); render(); };
+$('#fSlp').addEventListener('input', e => { setFileInfo(activeFile(), 'slp', e.target.value); render(); });
+// en la tabla unificada, cada archivo se edita en su fila del resumen
+$('#unibar').addEventListener('input', e => {
+  const el = e.target; if (el.tagName !== 'INPUT' || !el.dataset.k) return;
+  setFileInfo(state.files[+el.dataset.fi], el.dataset.k, el.value); renderKeepFocus(el);
+});
+$('#unibar').addEventListener('change', e => {
+  const el = e.target;
+  if (el.id === 'u-all-lista') { if (el.value) state.unified.forEach(f => setFileInfo(f, 'lista', el.value)); render(); return; }
+  if (el.tagName === 'SELECT' && el.dataset.k) { setFileInfo(state.files[+el.dataset.fi], el.dataset.k, el.value); render(); }
+});
 $('#undoBtn').onclick = () => { commitActive(); if (undoLast()) render(); };
 $('#chips').onclick = e => { const b = e.target.closest('[data-chip]'); if (!b) return; state.filterCol = state.filterCol === b.dataset.chip ? null : b.dataset.chip; render(); };
 $('#onlyIssues').onchange = e => { state.onlyIssues = e.target.checked; render(); };
