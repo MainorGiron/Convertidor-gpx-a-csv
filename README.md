@@ -15,6 +15,16 @@ Herramienta local para convertir archivos `.gpx` con datos de clientes al format
 6. **Descargar CSV**: archivo para importar, con las 22 columnas y los dos encabezados de la plantilla.
 7. **Descargar Excel (revisión)**: el mismo contenido en `.xlsx`, con filtros y los errores en rojo.
 
+### Tabla unificada
+
+Cuando un mismo origen llega repartido en varios GPX:
+
+1. En cada archivo que quieras juntar pulsa **＋ Agregar a tabla unificada** (la pestaña queda marcada con ✓).
+2. Abre la pestaña **Tabla unificada**: muestra todos esos clientes juntos, con una columna **Archivo** para saber de dónde viene cada uno y un resumen de la ruta, día, lista y vendedor de cada archivo.
+3. Descarga desde ahí el CSV o el Excel (por ejemplo `CD4R1 - LUNES - unificado.csv`), con la misma estructura de la plantilla.
+
+La tabla unificada está enlazada a los archivos: lo que corrijas en ella se guarda en el archivo de origen y al revés. Si un cliente aparece en dos archivos (mismo teléfono, o mismo nombre en el mismo punto GPS) se marca en amarillo como **posible duplicado**.
+
 Todo se procesa en el navegador; no se envía ningún dato a internet.
 
 ## De dónde sale cada columna
