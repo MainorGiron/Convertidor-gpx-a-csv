@@ -4,7 +4,7 @@ Herramienta local para convertir archivos `.gpx` con datos de clientes al format
 
 ## Uso
 
-1. Abre `convertidor-gpx-csv.html` con doble clic (Chrome o Edge).
+1. Abre `index.html` con doble clic (Chrome o Edge).
 2. Carga uno o varios archivos `.gpx` (botón o arrastrar y soltar).
 3. Revisa **Ruta** y **Día de visita**: se toman del nombre del archivo (`1.- CD4R1 - LUNES ...gpx` → ruta `CD4R1`, día `1`; `3.- RUTA 29 - MARTES ...gpx` → ruta `RUTA 29`, día `2`).
 4. Elige la **Lista de precios** del archivo y confirma el **Vendedor** (sale solo según la ruta).

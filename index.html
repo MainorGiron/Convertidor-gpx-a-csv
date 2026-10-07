@@ -270,8 +270,7 @@ td.origin { font-size: 12px; color: var(--muted); white-space: nowrap; }
       <div class="toolbar">
         <div class="chips" id="chips"></div>
         <div class="checks">
-          <label><input type="checkbox" id="showFixed"> Mostrar columnas con valor fijo</label>
-          <label><input type="checkbox" id="onlyIssues"> Solo filas con problemas</label>
+          <label title="Oculta las filas completas. No cuenta lo que se arregla para todo el archivo (ruta, día, lista de precios, vendedor)"><input type="checkbox" id="onlyIssues" autocomplete="off"> Solo filas con problemas</label>
           <button class="btn small" id="undoBtn" disabled title="Deshace la última corrección o intercambio">↶ Deshacer</button>
         </div>
       </div>
@@ -680,9 +679,9 @@ const state = {
   files: [], active: 0, tcfg: {},
   view: 'file', unified: [], undo: [], // view: 'file' o 'unified'; unified: archivos enlazados en orden
 
-  splitName: true, splitDesc: true, fmt: ',', bom: true, showFixed: false, onlyIssues: false, filterCol: null,
+  splitName: true, splitDesc: true, fmt: ',', bom: true, onlyIssues: false, filterCol: null,
 };
-const SAVED = ['tcfg', 'cfgOpen', 'splitName', 'splitDesc', 'fmt', 'bom', 'showFixed', 'lastLista'];
+const SAVED = ['tcfg', 'cfgOpen', 'splitName', 'splitDesc', 'fmt', 'bom', 'lastLista'];
 try {
   const s = JSON.parse(localStorage.getItem(STORE) || '{}');
   for (const k of SAVED) if (k in s) state[k] = s[k];
@@ -968,16 +967,19 @@ function renderSummary() {
     return `<button class="chip ${c.err ? '' : 'warn'} ${state.filterCol === k ? 'on' : ''}" data-chip="${k}">${esc(col.label)}: ${c.err || c.warn} ${c.err ? 'con problema' : 'por revisar'}</button>`;
   }).join('');
 }
+// Datos que se arreglan para todo el archivo (arriba de la tabla), no fila por fila
+const FILE_LEVEL = new Set(['ruta', 'dia', 'lista', 'vendedor']);
+const rowIssue = (f, res) => Object.entries(res.cells).some(([k, c]) => c.level !== 'ok' && !FILE_LEVEL.has(f.srcs[k].src));
 function renderTable() {
   const v = currentView(), t = $('#table');
   $('#undoBtn').disabled = !lastUndo();
   if (!v) { t.innerHTML = '<tr><td class="empty">Abre un archivo .gpx para empezar.</td></tr>'; return; }
   const head = v.files[0];
-  const cols = TEMPLATE.filter(col => state.showFixed || v.files.some(f => PER_CLIENT(f.srcs[col.api])));
+  const cols = TEMPLATE.filter(col => v.files.some(f => PER_CLIENT(f.srcs[col.api])));
   let html = `<thead><tr><th>#</th>${v.unified ? '<th>Archivo<span class="lbl">Origen</span></th>' : ''}${cols.map(col => `<th>${col.api}${head.srcs[col.api].required ? ' <span class="req" title="Obligatorio">*</span>' : ''}<span class="lbl">${esc(col.label)}</span></th>`).join('')}</tr></thead><tbody>`;
   let shown = 0;
   for (const { f, i, res } of v.entries) {
-    if (state.onlyIssues && (res.lvl === 'ok' || res.lvl === 'off')) continue;
+    if (state.onlyIssues && (res.lvl === 'off' || !rowIssue(f, res))) continue;
     if (state.filterCol && res.cells[state.filterCol].level === 'ok') continue;
     shown++;
     const fi = state.files.indexOf(f), off = res.lvl === 'off', meta = f.meta[i];
@@ -1194,7 +1196,6 @@ $('#unibar').addEventListener('change', e => {
 $('#undoBtn').onclick = () => { commitActive(); if (undoLast()) render(); };
 $('#chips').onclick = e => { const b = e.target.closest('[data-chip]'); if (!b) return; state.filterCol = state.filterCol === b.dataset.chip ? null : b.dataset.chip; render(); };
 $('#onlyIssues').onchange = e => { state.onlyIssues = e.target.checked; render(); };
-$('#showFixed').onchange = e => { state.showFixed = e.target.checked; save(); render(); };
 $('#splitName').onchange = e => { state.splitName = e.target.checked; state.files.forEach(buildRows); save(); render(); };
 $('#splitDesc').onchange = e => { state.splitDesc = e.target.checked; state.files.forEach(buildRows); save(); render(); };
 $('#fmt').onchange = e => { state.fmt = e.target.value; $('#download').textContent = state.fmt === 'tab' ? 'Descargar TXT' : 'Descargar CSV'; save(); };
@@ -1309,7 +1310,8 @@ $('#splitDesc').checked = state.splitDesc;
 $('#fmt').value = state.fmt;
 $('#download').textContent = state.fmt === 'tab' ? 'Descargar TXT' : 'Descargar CSV';
 $('#bom').checked = state.bom;
-$('#showFixed').checked = state.showFixed;
+// Edge y Chrome restauran casillas marcadas al recargar; se alinean con el estado real para que el filtro no quede "marcado pero apagado"
+$('#onlyIssues').checked = state.onlyIssues;
 $('#cfg').open = !!state.cfgOpen;
 $('#cfg').addEventListener('toggle', e => { state.cfgOpen = e.target.open; save(); });
 render();
