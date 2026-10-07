@@ -263,7 +263,7 @@ td.origin { font-size: 12px; color: var(--muted); white-space: nowrap; }
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn uni-btn" id="uniBtn" hidden title="Junta los clientes de este archivo con los de otros en una sola tabla">＋ Agregar a tabla unificada</button>
           <button class="btn" id="downloadAll" hidden>Descargar todos</button>
-          <button class="btn" id="downloadXlsx" title="Para revisar en Excel: columnas separadas, filtros y errores en rojo">Descargar Excel (revisión)</button>
+          <button class="btn" id="downloadXlsx" title="Para revisar en Excel: columnas separadas, filtros y errores en rojo">Descargar Excel</button>
           <button class="btn primary" id="download" title="Archivo para importar en SAP">Descargar CSV</button>
         </div>
       </div>
@@ -492,6 +492,8 @@ const PHONE_RE = /(?<!\d)((?:\+?50[2-7][\s-]?)?\d{4}[\s-]?\d{4})(?!\d)/;
 // "RTN03018010326279", "RTN: 0301-8010-326279" o 14 dígitos sueltos
 const RTN_RE = /\bR\.?\s*T\.?\s*N\.?\s*[:#.-]?\s*(\d[\d\s-]{12,}\d)/i;
 function takeRtn(parts) {
+  // "/ RTN" sin número: etiqueta vacía que corre todos los datos una posición; se descarta
+  for (let i = parts.length - 1; i > 0; i--) if (/^R\.?\s*T\.?\s*N\.?\s*[:#.-]?$/i.test(parts[i])) parts.splice(i, 1);
   for (let i = parts.length - 1; i > 0; i--) {
     const m = parts[i].match(RTN_RE);
     const bare = !m && /^\d{14}$/.test(parts[i].replace(/[\s-]/g, ''));
@@ -535,6 +537,8 @@ function splitName(text) {
   if (rtn) out.rtn = rtn;
   if (parts.length < 2) { out.negocio = parts[0] || ''; return { out, fix }; }
   let pi = parts.findIndex((p, i) => i > 0 && isPhone(p));
+  // número con dígitos de más o de menos ("227095559"): igual es el teléfono; queda en rojo para corregirlo
+  if (pi === -1) pi = parts.findIndex((p, i) => i > 0 && /^[+()\d\s.-]+$/.test(p) && /^\d{7,12}$/.test(p.replace(/\D/g, '')));
   if (pi === -1) { // número pegado a otro texto: "MARCIA FLORES 97766975"
     const i = parts.findIndex((p, i) => i > 0 && PHONE_RE.test(p));
     if (i > 0) {
@@ -548,6 +552,7 @@ function splitName(text) {
   let left, right; const phones = [];
   if (pi > 0) {
     let j = pi;
+    phones.push(parts[j++]); // el primero ya se reconoció como teléfono (aunque tenga dígitos de más)
     while (j < parts.length && isPhone(parts[j])) phones.push(parts[j++]);
     left = parts.slice(0, pi); right = parts.slice(j);
   } else { left = parts.slice(0, 2); right = parts.slice(2); }
