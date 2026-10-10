@@ -658,7 +658,8 @@ const isBiz = s => BIZ_RE.test(norm(s).toUpperCase());
 // def: de dónde sale el dato por defecto. aliases: campos del GPX que se usan si vienen.
 const T = (api, db, label, def, extra = {}) => ({ api, db, label, def, ...extra });
 const TEMPLATE = [
-  T('CardCode', 'CardCode', 'Código del cliente (lo asigna SAP)', { src: 'fixed', value: '' }, { max: 15 }),
+  // vacío para clientes nuevos (lo asigna SAP); si el Excel abierto ya trae el código, se respeta
+  T('CardCode', 'CardCode', 'Código del cliente (lo asigna SAP)', { src: 'fixed', value: '' }, { max: 15, aliases: ['cardcode'] }),
   T('CardName', 'CardName', 'Nombre (negocio)', { src: 'field', field: 'negocio', format: 'mayus', required: true }, { max: 100 }),
   T('CardType', 'CardType', 'Tipo de socio', { src: 'fixed', value: 'cCustomer' }),
   T('GroupCode', 'GroupCode', 'Grupo de clientes', { src: 'fixed', value: '104' }, { max: 6 }),
@@ -743,13 +744,15 @@ const allKeys = () => {
   for (const f of state.files) for (const k of f.keys) if (!keys.includes(k)) keys.push(k);
   return keys;
 };
+// Ruta, día, lista y vendedor son del archivo; en un Excel con varias rutas o días cada fila trae los suyos (f.rowInfo)
+const infoOf = (f, i, k) => (f.rowInfo ? f.rowInfo[i][k] : f[k]) || '';
 function rawValue(f, i, c, cells) {
   switch (c.src) {
     case 'field': return f.rows[i][c.field] ?? '';
-    case 'ruta': return f.ruta;
-    case 'dia': return f.dia ? String(DIAS.indexOf(f.dia) + 1) : ''; // LUNES → 1 … DOMINGO → 7
-    case 'lista': return f.lista || '';
-    case 'vendedor': return f.slp || '';
+    case 'ruta': return infoOf(f, i, 'ruta');
+    case 'dia': { const d = infoOf(f, i, 'dia'); return d ? String(DIAS.indexOf(d) + 1) : ''; } // LUNES → 1 … DOMINGO → 7
+    case 'lista': return infoOf(f, i, 'lista');
+    case 'vendedor': return infoOf(f, i, 'slp');
     case 'territorio': return cells.County ? territoryFor(cells.County.value) : '';
     default: return c.value;
   }
@@ -943,7 +946,12 @@ function setFileInfo(f, k, v) {
   else if (k === 'slp') { f.slp = v.trim(); f.slpManual = !!f.slp; }
   else if (k === 'lista') { f.lista = state.lastLista = v; save(); }
   else f[k] = v;
+  // en un Excel con varias rutas o días, lo que se cambia arriba se aplica a todos sus clientes
+  if (f.rowInfo) for (const ri of f.rowInfo) { ri[k] = f[k]; if (k === 'ruta' && !f.slpManual) ri.slp = f.slp; }
 }
+// valor común de las filas de un Excel ('' si cada fila trae uno distinto)
+const commonInfo = (f, k) => !f.rowInfo ? f[k] : new Set(f.rowInfo.map(r => r[k])).size === 1 ? f.rowInfo[0][k] : '';
+const mixedInfo = f => !!f.rowInfo && ['ruta', 'dia', 'lista', 'slp'].some(k => new Set(f.rowInfo.map(r => r[k])).size > 1);
 // redibuja sin perder el cursor del campo que se está escribiendo
 function renderKeepFocus(el) {
   const id = el.id, pos = el.selectionStart;
@@ -956,15 +964,19 @@ function renderFileBar() {
   const f = activeFile();
   $('#filebar').hidden = !f || state.view === 'unified';
   if ($('#filebar').hidden) return;
-  if (document.activeElement !== $('#fRuta')) $('#fRuta').value = f.ruta;
-  if (document.activeElement !== $('#fSlp')) $('#fSlp').value = f.slp;
-  $('#fDia').value = f.dia;
-  $('#fLista').value = f.lista;
-  $('#fLista').classList.toggle('bad', !f.lista);
-  const known = ROUTE_SLP[routeKey(f.ruta)], el = $('#fSlpName');
-  el.className = 'slp-name' + (f.slp ? '' : ' warn');
-  el.textContent = !f.slp ? 'Ruta no está en el catálogo: escribe el código'
-    : known && String(known[0]) === f.slp ? (known[1] || 'Sin nombre en el catálogo') : 'Código escrito a mano';
+  const ruta = commonInfo(f, 'ruta'), slp = commonInfo(f, 'slp'), lista = commonInfo(f, 'lista'), mixed = mixedInfo(f);
+  for (const [id, v] of [['#fRuta', ruta], ['#fSlp', slp]]) {
+    if (document.activeElement !== $(id)) $(id).value = v;
+    $(id).placeholder = mixed ? 'varios' : '';
+  }
+  $('#fDia').value = commonInfo(f, 'dia');
+  $('#fLista').value = lista;
+  $('#fLista').classList.toggle('bad', !lista && !mixed);
+  const known = ROUTE_SLP[routeKey(ruta)], el = $('#fSlpName');
+  el.className = 'slp-name' + (slp || mixed ? '' : ' warn');
+  el.textContent = mixed ? 'Este Excel trae varias rutas o días: cada cliente conserva los suyos. Lo que cambies aquí se aplica a todos.'
+    : !slp ? 'Ruta no está en el catálogo: escribe el código'
+    : known && String(known[0]) === slp ? (known[1] || 'Sin nombre en el catálogo') : 'Código escrito a mano';
 }
 function renderSummary() {
   const v = currentView();
@@ -1066,51 +1078,47 @@ async function readXlsx(buf) {
   });
 }
 // Columnas de la plantilla que traen datos de cada cliente
-const XLSX_FIELD = { CardName: 'negocio', Notes: 'propietario', Phone1: 'telefono', Address: 'direccion', City: 'municipio', County: 'departamento', U_Latitud: 'lat', U_Longitud: 'lon', RTN: 'rtn' };
+const XLSX_FIELD = { CardCode: 'cardcode', CardName: 'negocio', Notes: 'propietario', Phone1: 'telefono', Address: 'direccion', City: 'municipio', County: 'departamento', U_Latitud: 'lat', U_Longitud: 'lon', RTN: 'rtn' };
 // Excel con la estructura de la plantilla (el exportado por esta herramienta o el FORMATO de SAP)
-function xlsxToFiles(name, rows) {
+function xlsxToFile(name, rows) {
   const known = new Map(TEMPLATE.flatMap(c => [[c.api.toLowerCase(), c.api], [c.db.toLowerCase(), c.api]]));
   const isHeader = r => r && r.filter(v => known.has(clean(v).toLowerCase())).length >= 3;
   const hi = rows.slice(0, 5).findIndex(isHeader);
   if (hi < 0) throw new Error('no tiene las columnas de la plantilla (CardName, Address, Phone1…).');
   const cols = rows[hi].map(v => known.get(clean(v).toLowerCase()));
   const start = hi + (isHeader(rows[hi + 1]) ? 2 : 1); // segunda fila de encabezados (GroupNum, ListNum…)
-  const groups = new Map();
+  const raw = [], infos = [], fromName = fileInfo(name);
   for (const r of rows.slice(start)) {
     const get = api => { const i = cols.indexOf(api); return i < 0 ? '' : clean(r[i] ?? ''); };
     const rec = Object.fromEntries(Object.entries(XLSX_FIELD).map(([api, k]) => [k, get(api)]));
     if (!['negocio', 'propietario', 'telefono', 'direccion', 'lat', 'lon'].some(k => rec[k])) continue; // filas vacías o de valores por defecto
     const d = get('U_Dia_Visita');
-    const info = { ruta: get('U_Ruta').toUpperCase(), dia: /^[1-7]$/.test(d) ? DIAS[+d - 1] : DIAS.find(x => x === norm(d).toUpperCase()) || '', lista: get('PriceListNum'), slp: get('SalesPersonCode') };
-    const key = JSON.stringify(info);
-    if (!groups.has(key)) groups.set(key, { info, raw: [] });
-    groups.get(key).raw.push(rec);
-  }
-  if (!groups.size) throw new Error('no se encontraron clientes en la hoja.');
-  // si el Excel mezcla rutas o días (por ejemplo, una tabla unificada), cada combinación queda en su propia pestaña
-  const fromName = fileInfo(name), all = [...groups.values()];
-  return all.map(({ info, raw }) => {
-    const f = {
-      name: all.length > 1 ? `${name.replace(/\.xlsx$/i, '')} (${info.ruta || 'sin ruta'}${info.dia ? ' ' + info.dia : ''}).xlsx` : name,
-      raw, edits: {}, excluded: new Set(), ruta: info.ruta || fromName.ruta, dia: info.dia || fromName.dia, lista: info.lista || state.lastLista || '',
+    const info = {
+      ruta: get('U_Ruta').toUpperCase() || fromName.ruta,
+      dia: (/^[1-7]$/.test(d) ? DIAS[+d - 1] : DIAS.find(x => x === norm(d).toUpperCase())) || fromName.dia,
+      lista: get('PriceListNum') || state.lastLista || '',
     };
-    f.slp = info.slp || slpFor(f.ruta);
-    f.slpManual = !!info.slp && info.slp !== slpFor(f.ruta);
-    return f;
-  });
+    info.slp = get('SalesPersonCode') || slpFor(info.ruta);
+    raw.push(rec); infos.push(info);
+  }
+  if (!raw.length) throw new Error('no se encontraron clientes en la hoja.');
+  // todo el Excel en una sola pestaña; si trae varias rutas o días, cada cliente conserva los suyos
+  const same = k => new Set(infos.map(x => x[k])).size === 1;
+  const mixed = !['ruta', 'dia', 'lista', 'slp'].every(same);
+  const pick = k => same(k) ? infos[0][k] : '';
+  const f = { name, raw, edits: {}, excluded: new Set(), ruta: pick('ruta'), dia: pick('dia'), lista: pick('lista'), slp: pick('slp'), rowInfo: mixed ? infos : null };
+  f.slpManual = !!f.slp && f.slp !== slpFor(f.ruta);
+  return f;
 }
 
 async function addFiles(list) {
   const errors = [];
-  let unify = false;
+
   for (const file of list) {
     try {
       if (/\.xlsx$/i.test(file.name)) {
-        const files = xlsxToFiles(file.name, await readXlsx(await file.arrayBuffer()));
-        for (const f of files) { buildRows(f); state.files.push(f); }
-        state.active = state.files.length - files.length;
-        // un Excel de una tabla unificada vuelve a armarla solo con su contenido (los demás archivos siguen en sus pestañas)
-        if (files.length > 1) { state.unified = [...files]; unify = true; }
+        const f = xlsxToFile(file.name, await readXlsx(await file.arrayBuffer()));
+        buildRows(f); state.files.push(f); state.active = state.files.length - 1;
         continue;
       }
       const raw = parseGpx(decodeBuffer(await file.arrayBuffer()));
@@ -1121,7 +1129,7 @@ async function addFiles(list) {
   }
   $('#loadError').hidden = !errors.length;
   $('#loadError').textContent = errors.length ? 'No se pudo leer ' + errors.join(' · ') : '';
-  state.view = unify ? 'unified' : 'file'; state.filterCol = null; render();
+  state.view = 'file'; state.filterCol = null; render();
 }
 // Filas de salida con la estructura de la plantilla: 2 encabezados + datos (de un archivo o de la tabla unificada)
 function exportRows(view) {

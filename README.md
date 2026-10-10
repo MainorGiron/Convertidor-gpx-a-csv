@@ -17,7 +17,7 @@ Herramienta local para convertir archivos `.gpx` con datos de clientes al format
 
 ### Abrir un Excel para corregirlo
 
-También se pueden abrir archivos **.xlsx** con las columnas de la plantilla: el Excel que descarga esta herramienta (aunque lo hayas editado y guardado en Excel) o el `FORMATO PARA INGRESAR CLIENTES` lleno. Se cargan en la misma tabla para revisarlos, corregirlos y volver a descargar el CSV. La ruta, el día, la lista de precios y el vendedor se toman de las columnas del Excel; si el Excel viene de una tabla unificada con varias rutas o días, cada combinación vuelve a su propia pestaña dentro de la tabla unificada.
+También se pueden abrir archivos **.xlsx** con las columnas de la plantilla: el Excel que descarga esta herramienta (aunque lo hayas editado y guardado en Excel) o el `FORMATO PARA INGRESAR CLIENTES` lleno. Se cargan en la misma tabla para revisarlos, corregirlos y volver a descargar el CSV. La ruta, el día, la lista de precios y el vendedor se toman de las columnas del Excel; todo el Excel se abre en una sola pestaña y, si trae varias rutas o días (por ejemplo una planificación completa), cada cliente conserva los suyos. Si el Excel trae `CardCode` (clientes que ya existen en SAP), se respeta.
 
 ### Tabla unificada
 
