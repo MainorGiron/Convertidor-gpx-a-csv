@@ -368,6 +368,8 @@ function leaves(el) {
   return out;
 }
 function parseGpx(text) {
+  // "MERCADITO L&N": un "&" suelto invalida todo el XML; se escribe como &amp; antes de leerlo
+  text = text.replace(/&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
   const doc = new DOMParser().parseFromString(text, 'application/xml');
   if (doc.getElementsByTagName('parsererror').length) throw new Error('el archivo no es un GPX válido (el XML tiene errores).');
   let pts = byTag(doc, 'wpt');
@@ -528,6 +530,13 @@ function splitPlace(text) {
   const mu = suffixMatch(d.rest, muniIn(catKey(d.m.value)), 5);
   return mu ? [mu.rest, mu.cand, d.cand].filter(Boolean) : null;
 }
+// Nombre de persona: solo letras, 2 a 5 palabras, sin palabras de dirección ni de negocio
+const ADDR_RE = /\b(COLONIA|COL|BARRIO|BO|RESIDENCIAL|RES|CALLE|AVENIDA|AVE|BLVD|BOULEVARD|BOULEBAR|ALDEA|CASERIO|ZONA|SECTOR|BLOQUE|CASA|KM|FRENTE|CONTIGUO|ENTRADA|URBANIZACION|LOTIFICACION|MERCADO|CERCA|ARRIBA|ABAJO)\b/;
+function looksLikePerson(s) {
+  const t = norm(s).toUpperCase();
+  const w = t.split(/\s+/).filter(Boolean);
+  return /^[A-Z\s.]+$/.test(t) && w.length >= 2 && w.length <= 5 && !ADDR_RE.test(t) && !isBiz(t) && !matchDepto(t) && !matchCat(t, ALL_MUNIS, MUNI_ALIAS);
+}
 const SPLIT_KEYS = ['negocio', 'propietario', 'telefono', 'direccion', 'municipio', 'departamento'];
 function splitName(text) {
   let parts = String(text).split('/').map(clean).filter(Boolean);
@@ -555,6 +564,11 @@ function splitName(text) {
     while (j < parts.length && isPhone(parts[j])) phones.push(parts[j++]);
     left = parts.slice(0, pi); right = parts.slice(j);
   } else { left = parts.slice(0, 2); right = parts.slice(2); }
+  // "VARIEDADES ANDRES/87558937/ANTONIO ROCCA/COLONIA...": el propietario vino después del teléfono
+  if (left.length === 1 && right.length >= 2 && looksLikePerson(right[0])) {
+    left.push(right.shift());
+    fix.propietario = 'Movido automáticamente: venía después del teléfono';
+  }
   out.negocio = left[0] || '';
   out.propietario = left.slice(1).join(' / ');
   out.telefono = phones.join(' / ');
