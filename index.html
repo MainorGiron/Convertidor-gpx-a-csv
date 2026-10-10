@@ -199,9 +199,9 @@ td.origin { font-size: 12px; color: var(--muted); white-space: nowrap; }
   </header>
 
   <section class="drop" id="drop">
-    <button class="btn primary" id="pick">Abrir archivos .gpx</button>
-    <input type="file" id="fileInput" accept=".gpx,application/gpx+xml,text/xml" multiple hidden>
-    <span class="hint">o arrástralos aquí. Puedes cargar varios a la vez.</span>
+    <button class="btn primary" id="pick">Abrir archivos</button>
+    <input type="file" id="fileInput" accept=".gpx,.xlsx,application/gpx+xml,text/xml,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>
+    <span class="hint">.gpx o .xlsx (Excel con las columnas de la plantilla). También puedes arrastrarlos aquí, varios a la vez.</span>
     <div class="files" id="files"></div>
   </section>
   <div id="loadError" class="error-box" hidden></div>
@@ -1015,10 +1015,104 @@ function renderTable() {
 }
 
 /* ---------- Archivos ---------- */
+/* ---------- Lectura de Excel (.xlsx) ---------- */
+// Un .xlsx es un ZIP con XML adentro; las partes vienen comprimidas (deflate) y el navegador las descomprime
+async function unzip(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf), dec = new TextDecoder();
+  let e = buf.byteLength - 22;
+  while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('no es un Excel .xlsx válido (si es .xls antiguo, ábrelo en Excel y guárdalo como .xlsx).');
+  const files = {};
+  let p = dv.getUint32(e + 16, true);
+  for (let k = dv.getUint16(e + 10, true); k > 0; k--) {
+    const nl = dv.getUint16(p + 28, true);
+    files[dec.decode(u8.subarray(p + 46, p + 46 + nl))] = { method: dv.getUint16(p + 10, true), size: dv.getUint32(p + 20, true), off: dv.getUint32(p + 42, true) };
+    p += 46 + nl + dv.getUint16(p + 30, true) + dv.getUint16(p + 32, true);
+  }
+  return async name => {
+    const f = files[name]; if (!f) return null;
+    const start = f.off + 30 + dv.getUint16(f.off + 26, true) + dv.getUint16(f.off + 28, true);
+    const data = u8.subarray(start, start + f.size);
+    if (f.method === 0) return dec.decode(data);
+    return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  };
+}
+// Devuelve las filas de la primera hoja como listas de textos
+async function readXlsx(buf) {
+  const read = await unzip(buf);
+  const xml = async n => { const t = await read(n); return t && new DOMParser().parseFromString(t, 'application/xml'); };
+  const tags = (el, t) => [...el.getElementsByTagNameNS('*', t)];
+  const ss = await xml('xl/sharedStrings.xml');
+  const strings = ss ? tags(ss, 'si').map(si => tags(si, 't').map(t => t.textContent).join('')) : [];
+  let path = 'xl/worksheets/sheet1.xml';
+  const wb = await xml('xl/workbook.xml'), rels = await xml('xl/_rels/workbook.xml.rels');
+  const first = wb && tags(wb, 'sheet')[0];
+  if (first && rels) {
+    const rid = first.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') || first.getAttribute('r:id');
+    const rel = tags(rels, 'Relationship').find(r => r.getAttribute('Id') === rid);
+    if (rel) { const t = rel.getAttribute('Target'); path = t.startsWith('/') ? t.slice(1) : 'xl/' + t.replace(/^\.\//, ''); }
+  }
+  const sh = await xml(path);
+  if (!sh) throw new Error('no se encontró la hoja del Excel.');
+  const colIdx = ref => { let n = 0; for (const ch of ref.replace(/\d+$/, '')) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
+  return tags(sh, 'row').map(row => {
+    const out = [];
+    tags(row, 'c').forEach((c, k) => {
+      const t = c.getAttribute('t'), v = tags(c, 'v')[0]?.textContent ?? '';
+      out[c.getAttribute('r') ? colIdx(c.getAttribute('r')) : k] =
+        t === 's' ? strings[+v] ?? '' : t === 'inlineStr' ? tags(c, 't').map(x => x.textContent).join('') : v;
+    });
+    return Array.from(out, x => x ?? '');
+  });
+}
+// Columnas de la plantilla que traen datos de cada cliente
+const XLSX_FIELD = { CardName: 'negocio', Notes: 'propietario', Phone1: 'telefono', Address: 'direccion', City: 'municipio', County: 'departamento', U_Latitud: 'lat', U_Longitud: 'lon', RTN: 'rtn' };
+// Excel con la estructura de la plantilla (el exportado por esta herramienta o el FORMATO de SAP)
+function xlsxToFiles(name, rows) {
+  const known = new Map(TEMPLATE.flatMap(c => [[c.api.toLowerCase(), c.api], [c.db.toLowerCase(), c.api]]));
+  const isHeader = r => r && r.filter(v => known.has(clean(v).toLowerCase())).length >= 3;
+  const hi = rows.slice(0, 5).findIndex(isHeader);
+  if (hi < 0) throw new Error('no tiene las columnas de la plantilla (CardName, Address, Phone1…).');
+  const cols = rows[hi].map(v => known.get(clean(v).toLowerCase()));
+  const start = hi + (isHeader(rows[hi + 1]) ? 2 : 1); // segunda fila de encabezados (GroupNum, ListNum…)
+  const groups = new Map();
+  for (const r of rows.slice(start)) {
+    const get = api => { const i = cols.indexOf(api); return i < 0 ? '' : clean(r[i] ?? ''); };
+    const rec = Object.fromEntries(Object.entries(XLSX_FIELD).map(([api, k]) => [k, get(api)]));
+    if (!['negocio', 'propietario', 'telefono', 'direccion', 'lat', 'lon'].some(k => rec[k])) continue; // filas vacías o de valores por defecto
+    const d = get('U_Dia_Visita');
+    const info = { ruta: get('U_Ruta').toUpperCase(), dia: /^[1-7]$/.test(d) ? DIAS[+d - 1] : DIAS.find(x => x === norm(d).toUpperCase()) || '', lista: get('PriceListNum'), slp: get('SalesPersonCode') };
+    const key = JSON.stringify(info);
+    if (!groups.has(key)) groups.set(key, { info, raw: [] });
+    groups.get(key).raw.push(rec);
+  }
+  if (!groups.size) throw new Error('no se encontraron clientes en la hoja.');
+  // si el Excel mezcla rutas o días (por ejemplo, una tabla unificada), cada combinación queda en su propia pestaña
+  const fromName = fileInfo(name), all = [...groups.values()];
+  return all.map(({ info, raw }) => {
+    const f = {
+      name: all.length > 1 ? `${name.replace(/\.xlsx$/i, '')} (${info.ruta || 'sin ruta'}${info.dia ? ' ' + info.dia : ''}).xlsx` : name,
+      raw, edits: {}, excluded: new Set(), ruta: info.ruta || fromName.ruta, dia: info.dia || fromName.dia, lista: info.lista || state.lastLista || '',
+    };
+    f.slp = info.slp || slpFor(f.ruta);
+    f.slpManual = !!info.slp && info.slp !== slpFor(f.ruta);
+    return f;
+  });
+}
+
 async function addFiles(list) {
   const errors = [];
+  let unify = false;
   for (const file of list) {
     try {
+      if (/\.xlsx$/i.test(file.name)) {
+        const files = xlsxToFiles(file.name, await readXlsx(await file.arrayBuffer()));
+        for (const f of files) { buildRows(f); state.files.push(f); }
+        state.active = state.files.length - files.length;
+        // un Excel de una tabla unificada vuelve a armarla solo con su contenido (los demás archivos siguen en sus pestañas)
+        if (files.length > 1) { state.unified = [...files]; unify = true; }
+        continue;
+      }
       const raw = parseGpx(decodeBuffer(await file.arrayBuffer()));
       const f = { name: file.name, raw, edits: {}, excluded: new Set(), lista: state.lastLista || '', ...fileInfo(file.name) };
       f.slp = slpFor(f.ruta);
@@ -1027,7 +1121,7 @@ async function addFiles(list) {
   }
   $('#loadError').hidden = !errors.length;
   $('#loadError').textContent = errors.length ? 'No se pudo leer ' + errors.join(' · ') : '';
-  state.view = 'file'; state.filterCol = null; render();
+  state.view = unify ? 'unified' : 'file'; state.filterCol = null; render();
 }
 // Filas de salida con la estructura de la plantilla: 2 encabezados + datos (de un archivo o de la tabla unificada)
 function exportRows(view) {
@@ -1046,7 +1140,7 @@ function saveBlob(blob, name) {
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
 }
-const baseName = f => f.name.replace(/\.gpx$/i, '');
+const baseName = f => f.name.replace(/\.(gpx|xlsx)$/i, '');
 function download(view) {
   if (state.fmt === 'tab') { // UTF-16 LE con BOM: "Texto Unicode" de Excel/SAP
     const s = toText(view, '\t'), buf = new Uint8Array(2 + s.length * 2);
@@ -1152,7 +1246,7 @@ const drop = $('#drop');
 const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
 addEventListener('dragover', e => { if (!hasFiles(e)) return; e.preventDefault(); drop.classList.add('over'); });
 addEventListener('dragleave', e => { if (!e.relatedTarget) drop.classList.remove('over'); });
-addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files].filter(f => /\.gpx$/i.test(f.name) || f.type.includes('xml'))); });
+addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files].filter(f => /\.(gpx|xlsx)$/i.test(f.name) || f.type.includes('xml'))); });
 
 function openFile(i) { state.view = 'file'; state.active = i; state.filterCol = null; render(); }
 function removeFile(i) {

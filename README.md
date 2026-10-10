@@ -5,7 +5,7 @@ Herramienta local para convertir archivos `.gpx` con datos de clientes al format
 ## Uso
 
 1. Abre `index.html` con doble clic (Chrome o Edge).
-2. Carga uno o varios archivos `.gpx` (botón o arrastrar y soltar).
+2. Carga uno o varios archivos `.gpx` o `.xlsx` (botón o arrastrar y soltar).
 3. Revisa **Ruta** y **Día de visita**: se toman del nombre del archivo (`1.- CD4R1 - LUNES ...gpx` → ruta `CD4R1`, día `1`; `3.- RUTA 29 - MARTES ...gpx` → ruta `RUTA 29`, día `2`).
 4. Elige la **Lista de precios** del archivo y confirma el **Vendedor** (sale solo según la ruta).
 5. Corrige las celdas en rojo haciendo clic sobre ellas y usa **Excluir** en los puntos que no son clientes (por ejemplo `IMP 01`).
@@ -14,6 +14,10 @@ Herramienta local para convertir archivos `.gpx` con datos de clientes al format
    - **↶ Deshacer** revierte la última corrección o intercambio.
 6. **Descargar CSV**: archivo para importar, con las 22 columnas y los dos encabezados de la plantilla.
 7. **Descargar Excel (revisión)**: el mismo contenido en `.xlsx`, con filtros y los errores en rojo.
+
+### Abrir un Excel para corregirlo
+
+También se pueden abrir archivos **.xlsx** con las columnas de la plantilla: el Excel que descarga esta herramienta (aunque lo hayas editado y guardado en Excel) o el `FORMATO PARA INGRESAR CLIENTES` lleno. Se cargan en la misma tabla para revisarlos, corregirlos y volver a descargar el CSV. La ruta, el día, la lista de precios y el vendedor se toman de las columnas del Excel; si el Excel viene de una tabla unificada con varias rutas o días, cada combinación vuelve a su propia pestaña dentro de la tabla unificada.
 
 ### Tabla unificada
 
